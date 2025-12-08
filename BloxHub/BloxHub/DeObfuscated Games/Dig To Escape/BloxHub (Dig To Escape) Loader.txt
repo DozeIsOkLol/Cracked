@@ -1,0 +1,187 @@
+--[[
+    Original script modified by SouljaWitch
+    - Key system completely removed.
+    - Variable names have been de-obfuscated for better readability.
+    - General code cleanup.
+    - Added watermark to the screen.
+]]
+
+-- Services
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+local CoreGui = game:GetService("CoreGui")
+
+-- Local Player
+local LocalPlayer = Players.LocalPlayer
+
+-- Configuration
+local externalConfig = loadstring(game:HttpGet("https://bloxhub-six.vercel.app/autisme.lua"))()
+local mainScriptUrl = externalConfig.bless .. externalConfig.me .. externalConfig.god .. "dig-to-escape.lua" .. externalConfig.well .. externalConfig.methodfatch
+local logoAssetId = "rbxassetid://71512996518950"
+
+-- =============================================================
+--                        UI FUNCTIONS
+-- =============================================================
+
+-- Function to add the "Cracked by" watermark to the bottom of the screen
+local function addWatermark()
+    local watermarkGui = Instance.new("ScreenGui", CoreGui)
+    watermarkGui.Name = "SouljaWitchWatermark"
+    watermarkGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    -- Set a high DisplayOrder to ensure it renders on top of other UIs
+    watermarkGui.DisplayOrder = 999 
+
+    local watermarkLabel = Instance.new("TextLabel", watermarkGui)
+    watermarkLabel.Name = "WatermarkLabel"
+    watermarkLabel.AnchorPoint = Vector2.new(0.5, 1)
+    watermarkLabel.Position = UDim2.new(0.5, 0, 1, -10)
+    watermarkLabel.Size = UDim2.new(1, -40, 0, 30)
+    watermarkLabel.BackgroundTransparency = 1
+    watermarkLabel.Font = Enum.Font.GothamSemibold
+    watermarkLabel.Text = "Cracked by SouljaWitch"
+    watermarkLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    watermarkLabel.TextSize = 18
+    watermarkLabel.TextStrokeTransparency = 0.5
+end
+
+-- Function to create the loading screen UI
+local function createLoadingScreen()
+    local loadingScreenGui = Instance.new("ScreenGui", CoreGui)
+    loadingScreenGui.Name = "BloxHubLauncherLoading"
+    loadingScreenGui.ResetOnSpawn = false
+    loadingScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    local backgroundFrame = Instance.new("Frame", loadingScreenGui)
+    backgroundFrame.Size = UDim2.new(1, 0, 1, 0)
+    backgroundFrame.BackgroundColor3 = Color3.fromRGB(20, 25, 30)
+    backgroundFrame.BackgroundTransparency = 0.2
+    backgroundFrame.ZIndex = 30
+
+    local mainFrame = Instance.new("Frame", backgroundFrame)
+    mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    mainFrame.Size = UDim2.new(0, 340, 0, 100) -- Increased height for new label
+    mainFrame.BackgroundColor3 = Color3.fromRGB(31, 39, 48)
+    mainFrame.BorderSizePixel = 0
+    mainFrame.ZIndex = 32
+    Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 18)
+
+    local logoImage = Instance.new("ImageLabel", mainFrame)
+    logoImage.Image = logoAssetId
+    logoImage.Size = UDim2.new(0, 44, 0, 44)
+    logoImage.Position = UDim2.new(0, 16, 0.5, -32) -- Adjusted position
+    logoImage.BackgroundTransparency = 1
+    logoImage.ZIndex = 33
+
+    local titleLabel = Instance.new("TextLabel", mainFrame)
+    titleLabel.Size = UDim2.new(1, -80, 0, 24)
+    titleLabel.Position = UDim2.new(0, 72, 0, 10)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.Text = "Loading BloxHub"
+    titleLabel.TextColor3 = Color3.fromRGB(180, 255, 200)
+    titleLabel.TextSize = 18
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.ZIndex = 34
+    
+    local crackedLabel = Instance.new("TextLabel", mainFrame)
+    crackedLabel.Size = UDim2.new(1, -80, 0, 18)
+    crackedLabel.Position = UDim2.new(0, 72, 0, 32)
+    crackedLabel.BackgroundTransparency = 1
+    crackedLabel.Font = Enum.Font.Gotham
+    crackedLabel.Text = "Cracked by SouljaWitch"
+    crackedLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    crackedLabel.TextSize = 13
+    crackedLabel.TextXAlignment = Enum.TextXAlignment.Left
+    crackedLabel.ZIndex = 34
+
+    local statusLabel = Instance.new("TextLabel", mainFrame)
+    statusLabel.Size = UDim2.new(1, -80, 0, 18)
+    statusLabel.Position = UDim2.new(0, 72, 0, 50) -- Adjusted position
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Font = Enum.Font.Gotham
+    statusLabel.Text = "Preparing..."
+    statusLabel.TextColor3 = Color3.fromRGB(220, 230, 220)
+    statusLabel.TextSize = 13
+    statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+    statusLabel.ZIndex = 34
+
+    local progressBarBackground = Instance.new("Frame", mainFrame)
+    progressBarBackground.Size = UDim2.new(1, -32, 0, 8)
+    progressBarBackground.Position = UDim2.new(0, 16, 1, -16)
+    progressBarBackground.BackgroundColor3 = Color3.fromRGB(44, 54, 65)
+    progressBarBackground.BorderSizePixel = 0
+    progressBarBackground.ZIndex = 34
+    Instance.new("UICorner", progressBarBackground).CornerRadius = UDim.new(0, 4)
+
+    local progressBar = Instance.new("Frame", progressBarBackground)
+    progressBar.Size = UDim2.new(0, 0, 1, 0)
+    progressBar.BackgroundColor3 = Color3.fromRGB(120, 210, 130)
+    progressBar.BorderSizePixel = 0
+    progressBar.ZIndex = 35
+    Instance.new("UICorner", progressBar).CornerRadius = UDim.new(0, 4)
+
+    local function updateProgress(progress, statusText)
+        local clampedProgress = math.clamp(progress, 0, 1)
+        progressBar:TweenSize(UDim2.new(clampedProgress, 0, 1, 0), "Out", "Quad", 0.25, true)
+        statusLabel.Text = statusText or ""
+    end
+
+    local function destroyUI()
+        loadingScreenGui:Destroy()
+    end
+
+    return updateProgress, destroyUI
+end
+
+-- =============================================================
+--                        MAIN LOADER
+-- =============================================================
+
+-- Function to fetch and load the main script
+local function loadMainScript()
+    local updateProgress, destroyLoadingScreen = createLoadingScreen()
+
+    updateProgress(0.15, "Fetching script...")
+    
+    local success, scriptContent = pcall(function()
+        return game:HttpGet(mainScriptUrl)
+    end)
+
+    if success and (type(scriptContent) == "string" and #scriptContent > 0) then
+        updateProgress(0.8, "Executing script...")
+        
+        local loadSuccess, errorMessage = pcall(function()
+            loadstring(scriptContent)()
+        end)
+
+        if loadSuccess then
+            updateProgress(1, "Done!")
+            -- Add the watermark after the main script has successfully loaded
+            addWatermark()
+        else
+            updateProgress(1, "Script Error!")
+            warn("BloxHub Script Error:", errorMessage)
+            StarterGui:SetCore("SendNotification", {
+                Title = "BloxHub",
+                Text = "Script Error: " .. tostring(errorMessage),
+                Duration = 5
+            })
+        end
+    else
+        updateProgress(1, "Failed to fetch script!")
+        StarterGui:SetCore("SendNotification", {
+            Title = "BloxHub",
+            Text = "Failed to fetch main script!",
+            Duration = 5
+        })
+    end
+
+    wait(1)
+    destroyLoadingScreen()
+end
+
+-- Start the script loading process
+loadMainScript()

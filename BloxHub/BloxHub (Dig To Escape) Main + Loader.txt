@@ -1,0 +1,446 @@
+--[[
+    Original script by Function_BloxHub modified by SouljaWitchSrc
+    - Key system completely removed.
+    - Variable names have been de-obfuscated for better readability.
+    - General code cleanup.
+    - Added watermark to the screen.
+	- Cracked because such a simple script with a annoying key for no reason
+	- Removed external configuration dependency.
+    - Main script is now fully integrated into the loader.
+]]
+
+-- Services
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+local CoreGui = game:GetService("CoreGui")
+
+-- Local Player
+local LocalPlayer = Players.LocalPlayer
+
+-- Configuration
+local logoAssetId = "rbxassetid://71512996518950"
+
+-- =============================================================
+--                        THE MAIN SCRIPT
+-- =============================================================
+-- This function contains the entire script that was previously loaded externally.
+local function executeMainScript()
+    -- Auto Pull Items Script
+    local Players = game:GetService("Players")
+    local Workspace = game:GetService("Workspace")
+    local RunService = game:GetService("RunService")
+    local UserInputService = game:GetService("UserInputService")
+
+    local player = Players.LocalPlayer
+    local pulling = false
+    local connection
+
+    -- Rarity list
+    local rarities = {
+        "Common",
+        "Uncommon",
+        "Rare",
+        "Epic",
+        "Legendary"
+    }
+
+    -- Enabled rarities
+    local enabled = {
+        Common = true,
+        Uncommon = true,
+        Rare = true,
+        Epic = true,
+        Legendary = true
+    }
+
+    -- Function to pull items
+    local function pullItems()
+        if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+            return
+        end
+        
+        local hrp = player.Character.HumanoidRootPart
+        local targetPos = hrp.Position + Vector3.new(0, 5, 0)
+        
+        for _, rarity in ipairs(rarities) do
+            if enabled[rarity] then
+                local folder = Workspace.Map.Functional.SpawnedItems:FindFirstChild(rarity)
+                if folder then
+                    for _, item in ipairs(folder:GetChildren()) do
+                        local root = item:FindFirstChild("Root")
+                        if root and root:IsA("BasePart") then
+                            root.CFrame = CFrame.new(targetPos)
+                            root.Velocity = Vector3.new(0, 0, 0)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Create GUI
+    local ScreenGui = Instance.new("ScreenGui")
+    local Frame = Instance.new("Frame")
+    local TopBar = Instance.new("Frame")
+    local Title = Instance.new("TextLabel")
+    local MinimizeBtn = Instance.new("TextButton")
+    local CloseBtn = Instance.new("TextButton")
+    local ToggleBtn = Instance.new("TextButton")
+    local UICorner = Instance.new("UICorner")
+    local UICorner2 = Instance.new("UICorner")
+    local UICorner3 = Instance.new("UICorner")
+    local UICorner4 = Instance.new("UICorner")
+
+    -- Minimized Icon
+    local MinimizedIcon = Instance.new("ImageButton")
+    local IconCorner = Instance.new("UICorner")
+
+    ScreenGui.Name = "AutoPullGUI"
+    ScreenGui.Parent = player:WaitForChild("PlayerGui")
+    ScreenGui.ResetOnSpawn = false
+
+    Frame.Name = "MainFrame"
+    Frame.Parent = ScreenGui
+    Frame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+    Frame.Position = UDim2.new(0.85, 0, 0.3, 0)
+    Frame.Size = UDim2.new(0, 200, 0, 280)
+    Frame.Active = true
+
+    UICorner.Parent = Frame
+    UICorner.CornerRadius = UDim.new(0, 10)
+
+    -- Top Bar (draggable area)
+    TopBar.Name = "TopBar"
+    TopBar.Parent = Frame
+    TopBar.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+    TopBar.Size = UDim2.new(1, 0, 0, 35)
+    TopBar.Active = true
+
+    UICorner3.Parent = TopBar
+    UICorner3.CornerRadius = UDim.new(0, 10)
+
+    -- Make frame draggable
+    local dragging = false
+    local dragInput, mousePos, framePos
+
+    TopBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            mousePos = input.Position
+            framePos = Frame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    TopBar.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - mousePos
+            Frame.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
+        end
+    end)
+
+    Title.Parent = TopBar
+    Title.BackgroundTransparency = 1
+    Title.Position = UDim2.new(0, 10, 0, 0)
+    Title.Size = UDim2.new(1, -80, 1, 0)
+    Title.Font = Enum.Font.GothamBold
+    Title.Text = "Auto Pull Items"
+    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Title.TextSize = 14
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Minimize Button
+    MinimizeBtn.Parent = TopBar
+    MinimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
+    MinimizeBtn.Position = UDim2.new(1, -65, 0.5, -10)
+    MinimizeBtn.Size = UDim2.new(0, 25, 0, 20)
+    MinimizeBtn.Font = Enum.Font.GothamBold
+    MinimizeBtn.Text = "_"
+    MinimizeBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+    MinimizeBtn.TextSize = 16
+
+    UICorner2.Parent = MinimizeBtn
+    UICorner2.CornerRadius = UDim.new(0, 5)
+
+    -- Close Button
+    CloseBtn.Parent = TopBar
+    CloseBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+    CloseBtn.Position = UDim2.new(1, -35, 0.5, -10)
+    CloseBtn.Size = UDim2.new(0, 25, 0, 20)
+    CloseBtn.Font = Enum.Font.GothamBold
+    CloseBtn.Text = "X"
+    CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CloseBtn.TextSize = 14
+
+    UICorner4.Parent = CloseBtn
+    UICorner4.CornerRadius = UDim.new(0, 5)
+
+    ToggleBtn.Parent = Frame
+    ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 255)
+    ToggleBtn.Position = UDim2.new(0.1, 0, 0, 45)
+    ToggleBtn.Size = UDim2.new(0.8, 0, 0, 40)
+    ToggleBtn.Font = Enum.Font.GothamBold
+    ToggleBtn.Text = "PULL"
+    ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleBtn.TextSize = 18
+
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.Parent = ToggleBtn
+    toggleCorner.CornerRadius = UDim.new(0, 8)
+
+    -- Minimized Icon (BloxHub style)
+    MinimizedIcon.Name = "MinimizedIcon"
+    MinimizedIcon.Parent = ScreenGui
+    MinimizedIcon.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+    MinimizedIcon.Position = UDim2.new(0, 10, 0.5, -30)
+    MinimizedIcon.Size = UDim2.new(0, 60, 0, 60)
+    MinimizedIcon.Image = "rbxassetid://3926305904" -- BloxHub icon
+    MinimizedIcon.ImageColor3 = Color3.fromRGB(100, 180, 255)
+    MinimizedIcon.Visible = false
+
+    IconCorner.Parent = MinimizedIcon
+    IconCorner.CornerRadius = UDim.new(0, 10)
+
+    -- Rarity checkboxes
+    local yOffset = 95
+    for _, rarity in ipairs(rarities) do
+        local CheckFrame = Instance.new("Frame")
+        local CheckBox = Instance.new("TextButton")
+        local Label = Instance.new("TextLabel")
+        
+        CheckFrame.Parent = Frame
+        CheckFrame.BackgroundTransparency = 1
+        CheckFrame.Position = UDim2.new(0.1, 0, 0, yOffset)
+        CheckFrame.Size = UDim2.new(0.8, 0, 0, 25)
+        
+        CheckBox.Parent = CheckFrame
+        CheckBox.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        CheckBox.Size = UDim2.new(0, 20, 0, 20)
+        CheckBox.Text = "✓"
+        CheckBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+        CheckBox.TextSize = 14
+        CheckBox.Font = Enum.Font.GothamBold
+        
+        local corner = Instance.new("UICorner")
+        corner.Parent = CheckBox
+        corner.CornerRadius = UDim.new(0, 4)
+        
+        Label.Parent = CheckFrame
+        Label.BackgroundTransparency = 1
+        Label.Position = UDim2.new(0, 30, 0, 0)
+        Label.Size = UDim2.new(1, -30, 1, 0)
+        Label.Font = Enum.Font.Gotham
+        Label.Text = rarity
+        Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Label.TextSize = 14
+        Label.TextXAlignment = Enum.TextXAlignment.Left
+        
+        CheckBox.MouseButton1Click:Connect(function()
+            enabled[rarity] = not enabled[rarity]
+            if enabled[rarity] then
+                CheckBox.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+                CheckBox.Text = "✓"
+            else
+                CheckBox.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+                CheckBox.Text = "✕"
+            end
+        end)
+        
+        yOffset = yOffset + 30
+    end
+
+    -- Function to minimize/maximize
+    local function toggleMinimize()
+        Frame.Visible = not Frame.Visible
+        MinimizedIcon.Visible = not MinimizedIcon.Visible
+    end
+
+    -- Minimize button click
+    MinimizeBtn.MouseButton1Click:Connect(toggleMinimize)
+
+    -- Icon click to restore
+    MinimizedIcon.MouseButton1Click:Connect(toggleMinimize)
+
+    -- Close button
+    CloseBtn.MouseButton1Click:Connect(function()
+        ScreenGui:Destroy()
+    end)
+
+    -- Hotkey: Alt to minimize/maximize
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if not gameProcessed and input.KeyCode == Enum.KeyCode.LeftAlt then
+            toggleMinimize()
+        end
+    end)
+
+    -- Pull button functionality (one-time pull)
+    ToggleBtn.MouseButton1Click:Connect(function()
+        ToggleBtn.Text = "PULLING..."
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
+        
+        pullItems()
+        
+        wait(0.3)
+        ToggleBtn.Text = "PULL"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 255)
+    end)
+end
+
+-- =============================================================
+--                        UI FUNCTIONS
+-- =============================================================
+
+-- Function to add the "Cracked by" watermark to the bottom of the screen
+local function addWatermark()
+    local watermarkGui = Instance.new("ScreenGui", CoreGui)
+    watermarkGui.Name = "SouljaWitchWatermark"
+    watermarkGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    watermarkGui.DisplayOrder = 999 
+
+    local watermarkLabel = Instance.new("TextLabel", watermarkGui)
+    watermarkLabel.Name = "WatermarkLabel"
+    watermarkLabel.AnchorPoint = Vector2.new(0.5, 1)
+    watermarkLabel.Position = UDim2.new(0.5, 0, 1, -10)
+    watermarkLabel.Size = UDim2.new(1, -40, 0, 30)
+    watermarkLabel.BackgroundTransparency = 1
+    watermarkLabel.Font = Enum.Font.GothamSemibold
+    watermarkLabel.Text = "Cracked by SouljaWitchSrc"
+    watermarkLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    watermarkLabel.TextSize = 18
+    watermarkLabel.TextStrokeTransparency = 0.5
+end
+
+-- Function to create the loading screen UI
+local function createLoadingScreen()
+    local loadingScreenGui = Instance.new("ScreenGui", CoreGui)
+    loadingScreenGui.Name = "BloxHubLauncherLoading"
+    loadingScreenGui.ResetOnSpawn = false
+    loadingScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    local backgroundFrame = Instance.new("Frame", loadingScreenGui)
+    backgroundFrame.Size = UDim2.new(1, 0, 1, 0)
+    backgroundFrame.BackgroundColor3 = Color3.fromRGB(20, 25, 30)
+    backgroundFrame.BackgroundTransparency = 0.2
+    backgroundFrame.ZIndex = 30
+
+    local mainFrame = Instance.new("Frame", backgroundFrame)
+    mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    mainFrame.Size = UDim2.new(0, 340, 0, 100) -- Increased height for new label
+    mainFrame.BackgroundColor3 = Color3.fromRGB(31, 39, 48)
+    mainFrame.BorderSizePixel = 0
+    mainFrame.ZIndex = 32
+    Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 18)
+
+    local logoImage = Instance.new("ImageLabel", mainFrame)
+    logoImage.Image = logoAssetId
+    logoImage.Size = UDim2.new(0, 44, 0, 44)
+    logoImage.Position = UDim2.new(0, 16, 0.5, -32) -- Adjusted position
+    logoImage.BackgroundTransparency = 1
+    logoImage.ZIndex = 33
+
+    local titleLabel = Instance.new("TextLabel", mainFrame)
+    titleLabel.Size = UDim2.new(1, -80, 0, 24)
+    titleLabel.Position = UDim2.new(0, 72, 0, 10)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.Text = "Loading BloxHub"
+    titleLabel.TextColor3 = Color3.fromRGB(180, 255, 200)
+    titleLabel.TextSize = 18
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.ZIndex = 34
+    
+    local crackedLabel = Instance.new("TextLabel", mainFrame)
+    crackedLabel.Size = UDim2.new(1, -80, 0, 18)
+    crackedLabel.Position = UDim2.new(0, 72, 0, 32)
+    crackedLabel.BackgroundTransparency = 1
+    crackedLabel.Font = Enum.Font.Gotham
+    crackedLabel.Text = "Cracked by SouljaWitchSrc"
+    crackedLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    crackedLabel.TextSize = 13
+    crackedLabel.TextXAlignment = Enum.TextXAlignment.Left
+    crackedLabel.ZIndex = 34
+
+    local statusLabel = Instance.new("TextLabel", mainFrame)
+    statusLabel.Size = UDim2.new(1, -80, 0, 18)
+    statusLabel.Position = UDim2.new(0, 72, 0, 50) -- Adjusted position
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Font = Enum.Font.Gotham
+    statusLabel.Text = "Preparing..."
+    statusLabel.TextColor3 = Color3.fromRGB(220, 230, 220)
+    statusLabel.TextSize = 13
+    statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+    statusLabel.ZIndex = 34
+
+    local progressBarBackground = Instance.new("Frame", mainFrame)
+    progressBarBackground.Size = UDim2.new(1, -32, 0, 8)
+    progressBarBackground.Position = UDim2.new(0, 16, 1, -16)
+    progressBarBackground.BackgroundColor3 = Color3.fromRGB(44, 54, 65)
+    progressBarBackground.BorderSizePixel = 0
+    progressBarBackground.ZIndex = 34
+    Instance.new("UICorner", progressBarBackground).CornerRadius = UDim.new(0, 4)
+
+    local progressBar = Instance.new("Frame", progressBarBackground)
+    progressBar.Size = UDim2.new(0, 0, 1, 0)
+    progressBar.BackgroundColor3 = Color3.fromRGB(120, 210, 130)
+    progressBar.BorderSizePixel = 0
+    progressBar.ZIndex = 35
+    Instance.new("UICorner", progressBar).CornerRadius = UDim.new(0, 4)
+
+    local function updateProgress(progress, statusText)
+        local clampedProgress = math.clamp(progress, 0, 1)
+        progressBar:TweenSize(UDim2.new(clampedProgress, 0, 1, 0), "Out", "Quad", 0.25, true)
+        statusLabel.Text = statusText or ""
+    end
+
+    local function destroyUI()
+        loadingScreenGui:Destroy()
+    end
+
+    return updateProgress, destroyUI
+end
+
+-- =============================================================
+--                        MAIN LOADER
+-- =============================================================
+
+-- Function to load the embedded main script
+local function loadMainScript()
+    local updateProgress, destroyLoadingScreen = createLoadingScreen()
+
+    updateProgress(0.5, "Preparing script...")
+    
+    local loadSuccess, errorMessage = pcall(executeMainScript)
+
+    if loadSuccess then
+        updateProgress(1, "Done!")
+        addWatermark()
+    else
+        updateProgress(1, "Script Error!")
+        warn("BloxHub Script Error:", errorMessage)
+        StarterGui:SetCore("SendNotification", {
+            Title = "BloxHub",
+            Text = "Script Error: " .. tostring(errorMessage),
+            Duration = 5
+        })
+    end
+
+    wait(1)
+    destroyLoadingScreen()
+end
+
+-- Start the script loading process
+loadMainScript()

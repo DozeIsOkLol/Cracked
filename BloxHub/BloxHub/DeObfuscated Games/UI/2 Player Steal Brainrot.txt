@@ -1,0 +1,436 @@
+-- Deobfuscated by SouljaWitchSrc
+
+-- Services and Core Variables
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+game:GetService("TweenService") -- Service is called but not assigned to a variable in original script
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+LocalPlayer:GetMouse() -- Called but not assigned
+
+local BasesFolder = Workspace:WaitForChild("Map"):WaitForChild("Bases")
+
+-- Configuration
+local BasesToScan = {
+    BasesFolder:GetChildren()[5],
+    BasesFolder:GetChildren()[4],
+    BasesFolder:GetChildren()[2],
+    BasesFolder:GetChildren()[3],
+    BasesFolder:FindFirstChild("CloneBase"),
+    BasesFolder:GetChildren()[6]
+}
+
+local Waypoints = {}
+
+local Theme = {
+    background = Color3.fromRGB(24, 26, 37),
+    primary = Color3.fromRGB(37, 39, 54),
+    secondary = Color3.fromRGB(54, 57, 73),
+    accent = Color3.fromRGB(88, 101, 242),
+    accent_success = Color3.fromRGB(87, 242, 135),
+    accent_danger = Color3.fromRGB(237, 66, 69),
+    text_primary = Color3.fromRGB(230, 230, 245),
+    text_secondary = Color3.fromRGB(180, 182, 195)
+}
+
+-- UI Creation
+local MainGui = Instance.new("ScreenGui")
+MainGui.Name = "CombinedTeleporterGui"
+MainGui.ResetOnSpawn = false
+MainGui.Parent = PlayerGui
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 340, 0, 450)
+MainFrame.Position = UDim2.new(0.5, -170, 0.5, -225)
+MainFrame.BackgroundColor3 = Theme.background
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = MainGui
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
+
+local TitleBar = Instance.new("Frame")
+TitleBar.Name = "TitleBar"
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.BackgroundColor3 = Theme.primary
+TitleBar.Parent = MainFrame
+
+local TitleLabel = Instance.new("TextLabel", TitleBar)
+TitleLabel.Size = UDim2.new(1, -50, 1, 0)
+TitleLabel.Position = UDim2.new(0, 15, 0, 0)
+TitleLabel.Text = "Teleporter Menu"
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextSize = 18
+TitleLabel.TextColor3 = Theme.text_primary
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.BackgroundTransparency = 1
+
+local MinimizeButton = Instance.new("TextButton", TitleBar)
+MinimizeButton.Name = "MinimizeButton"
+MinimizeButton.Size = UDim2.new(0, 30, 0, 30)
+MinimizeButton.Position = UDim2.new(1, -35, 0.5, -15)
+MinimizeButton.Text = "—" -- Replaced symbol with a proper dash
+MinimizeButton.Font = Enum.Font.SourceSansBold
+MinimizeButton.TextSize = 20
+MinimizeButton.BackgroundColor3 = Theme.secondary
+MinimizeButton.TextColor3 = Theme.text_secondary
+Instance.new("UICorner", MinimizeButton).CornerRadius = UDim.new(0, 6)
+
+local ContentContainer = Instance.new("Frame", MainFrame)
+ContentContainer.Size = UDim2.new(1, 0, 1, -40)
+ContentContainer.Position = UDim2.new(0, 0, 0, 40)
+ContentContainer.BackgroundTransparency = 1
+
+local TabFrame = Instance.new("Frame", ContentContainer)
+TabFrame.Size = UDim2.new(1, -20, 0, 40)
+TabFrame.Position = UDim2.new(0, 10, 0, 5)
+TabFrame.BackgroundTransparency = 1
+
+local TabListLayout = Instance.new("UIListLayout", TabFrame)
+TabListLayout.FillDirection = Enum.FillDirection.Horizontal
+TabListLayout.Padding = UDim.new(0, 10)
+
+local function createTabButton(text)
+    local button = Instance.new("TextButton")
+    button.Text = text
+    button.Font = Enum.Font.GothamSemibold
+    button.TextSize = 16
+    button.TextColor3 = Theme.text_secondary
+    button.BackgroundColor3 = Theme.primary
+    button.Size = UDim2.new(0.5, -5, 1, 0)
+    Instance.new("UICorner", button).CornerRadius = UDim.new(0, 6)
+    return button
+end
+
+local NpcTabButton = createTabButton("NPCs")
+NpcTabButton.Name = "NpcTab"
+NpcTabButton.Parent = TabFrame
+
+local TeleportTabButton = createTabButton("Teleport")
+TeleportTabButton.Name = "TeleportTab"
+TeleportTabButton.Parent = TabFrame
+
+local NpcContentFrame = Instance.new("Frame", ContentContainer)
+NpcContentFrame.Name = "NpcContent"
+NpcContentFrame.Size = UDim2.new(1, 0, 1, -50)
+NpcContentFrame.Position = UDim2.new(0, 0, 0, 50)
+NpcContentFrame.BackgroundTransparency = 1
+
+local WaypointContentFrame = NpcContentFrame:Clone()
+WaypointContentFrame.Name = "WaypointContent"
+WaypointContentFrame.Parent = ContentContainer
+WaypointContentFrame.Visible = false
+
+local function switchTab(activeTabButton)
+    -- Reset all tab buttons to their default state
+    for _, button in ipairs(TabFrame:GetChildren()) do
+        if button:IsA("TextButton") then
+            button.BackgroundColor3 = Theme.primary
+            button.TextColor3 = Theme.text_secondary
+        end
+    end
+
+    -- Set the active tab's state
+    activeTabButton.BackgroundColor3 = Theme.accent
+    activeTabButton.TextColor3 = Theme.text_primary
+
+    -- Show the correct content frame
+    NpcContentFrame.Visible = (activeTabButton == NpcTabButton)
+    WaypointContentFrame.Visible = (activeTabButton == TeleportTabButton)
+end
+
+NpcTabButton.MouseButton1Click:Connect(function()
+    switchTab(NpcTabButton)
+end)
+
+TeleportTabButton.MouseButton1Click:Connect(function()
+    switchTab(TeleportTabButton)
+end)
+
+local NpcListFrame = Instance.new("ScrollingFrame", NpcContentFrame)
+NpcListFrame.Size = UDim2.new(1, -20, 1, -60)
+NpcListFrame.Position = UDim2.new(0, 10, 0, 0)
+NpcListFrame.BackgroundColor3 = Theme.primary
+NpcListFrame.BorderSizePixel = 0
+NpcListFrame.ScrollBarImageColor3 = Theme.accent
+NpcListFrame.ScrollBarThickness = 8
+local NpcListLayout = Instance.new("UIListLayout", NpcListFrame)
+NpcListLayout.Padding = UDim.new(0, 8)
+NpcListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+NpcListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+Instance.new("UICorner", NpcListFrame).CornerRadius = UDim.new(0, 8)
+
+local RefreshNpcButton = Instance.new("TextButton", NpcContentFrame)
+RefreshNpcButton.Size = UDim2.new(1, -20, 0, 40)
+RefreshNpcButton.Position = UDim2.new(0, 10, 1, -50)
+RefreshNpcButton.Text = "Refresh NPC List"
+RefreshNpcButton.Font = Enum.Font.GothamBold
+RefreshNpcButton.BackgroundColor3 = Theme.accent
+RefreshNpcButton.TextColor3 = Theme.text_primary
+Instance.new("UICorner", RefreshNpcButton).CornerRadius = UDim.new(0, 8)
+
+local WaypointListFrame = Instance.new("ScrollingFrame", WaypointContentFrame)
+WaypointListFrame.Size = UDim2.new(1, -20, 1, -130)
+WaypointListFrame.Position = UDim2.new(0, 10, 0, 0)
+WaypointListFrame.BackgroundColor3 = Theme.primary
+WaypointListFrame.BorderSizePixel = 0
+WaypointListFrame.ScrollBarImageColor3 = Theme.accent
+WaypointListFrame.ScrollBarThickness = 8
+local WaypointListLayout = Instance.new("UIListLayout", WaypointListFrame)
+WaypointListLayout.Padding = UDim.new(0, 5)
+WaypointListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+Instance.new("UICorner", WaypointListFrame).CornerRadius = UDim.new(0, 8)
+
+local WaypointInfoLabel = Instance.new("TextLabel", WaypointContentFrame)
+WaypointInfoLabel.Size = UDim2.new(1, -20, 0, 30)
+WaypointInfoLabel.Position = UDim2.new(0, 10, 1, -125)
+WaypointInfoLabel.Text = "Save your current location as a waypoint."
+WaypointInfoLabel.Font = Enum.Font.Gotham
+WaypointInfoLabel.TextSize = 14
+WaypointInfoLabel.TextColor3 = Theme.text_secondary
+WaypointInfoLabel.TextWrapped = true
+WaypointInfoLabel.BackgroundTransparency = 1
+
+local WaypointNameInput = Instance.new("TextBox", WaypointContentFrame)
+WaypointNameInput.Size = UDim2.new(1, -20, 0, 35)
+WaypointNameInput.Position = UDim2.new(0, 10, 1, -90)
+WaypointNameInput.PlaceholderText = "Type waypoint name..."
+WaypointNameInput.Font = Enum.Font.Gotham
+WaypointNameInput.TextSize = 16
+WaypointNameInput.TextColor3 = Theme.text_primary
+WaypointNameInput.PlaceholderColor3 = Theme.text_secondary
+WaypointNameInput.BackgroundColor3 = Theme.secondary
+Instance.new("UICorner", WaypointNameInput).CornerRadius = UDim.new(0, 8)
+
+local AddWaypointButton = Instance.new("TextButton", WaypointContentFrame)
+AddWaypointButton.Size = UDim2.new(1, -20, 0, 40)
+AddWaypointButton.Position = UDim2.new(0, 10, 1, -50)
+AddWaypointButton.Text = "Add Waypoint"
+AddWaypointButton.Font = Enum.Font.GothamBold
+AddWaypointButton.BackgroundColor3 = Theme.accent_success
+AddWaypointButton.TextColor3 = Theme.background
+Instance.new("UICorner", AddWaypointButton).CornerRadius = UDim.new(0, 8)
+
+local RestoreButton = Instance.new("TextButton", MainGui)
+RestoreButton.Size = UDim2.new(0, 50, 0, 50)
+RestoreButton.Position = UDim2.new(0, 15, 1, -65)
+RestoreButton.Text = "TP"
+RestoreButton.Font = Enum.Font.GothamBold
+RestoreButton.TextSize = 20
+RestoreButton.BackgroundColor3 = Theme.accent
+RestoreButton.TextColor3 = Theme.text_primary
+RestoreButton.Visible = false
+Instance.new("UICorner", RestoreButton).CornerRadius = UDim.new(1, 0);
+
+-- Make the frame draggable
+(function(frame, handle)
+    local isDragging = false
+    local dragStart = nil
+    local frameStart = nil
+    handle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            isDragging = true
+            dragStart = input.Position
+            frameStart = frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    isDragging = false
+                end
+            end)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and isDragging then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(frameStart.X.Scale, frameStart.X.Offset + delta.X, frameStart.Y.Scale, frameStart.Y.Offset + delta.Y)
+        end
+    end)
+end)(MainFrame, TitleBar)
+
+MinimizeButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    RestoreButton.Visible = true
+end)
+
+RestoreButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = true
+    RestoreButton.Visible = false
+end)
+
+local function teleportToCFrame(cframe)
+    if LocalPlayer.Character then
+        LocalPlayer.Character:PivotTo(cframe + Vector3.new(0, 3, 0))
+    end
+end
+
+local function teleportToModel(model)
+    local targetPart = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
+    if targetPart then
+        teleportToCFrame(targetPart.CFrame)
+    else
+        warn("Teleport to " .. model.Name .. " failed: Could not find a target part.")
+    end
+end
+
+local function refreshWaypointList()
+    for _, child in ipairs(WaypointListFrame:GetChildren()) do
+        if child:IsA("Frame") or child:IsA("TextLabel") then
+            child:Destroy()
+        end
+    end
+
+    if #Waypoints ~= 0 then
+        for index, waypointData in ipairs(Waypoints) do
+            local waypointFrame = Instance.new("Frame", WaypointListFrame)
+            waypointFrame.Size = UDim2.new(1, -10, 0, 40)
+            waypointFrame.Position = UDim2.new(0, 5, 0, 0)
+            waypointFrame.BackgroundTransparency = 1
+            waypointFrame.LayoutOrder = index
+            
+            local nameLabel = Instance.new("TextLabel", waypointFrame)
+            nameLabel.Size = UDim2.new(1, -100, 1, 0)
+            nameLabel.Text = "  " .. waypointData.name
+            nameLabel.Font = Enum.Font.Gotham
+            nameLabel.TextSize = 16
+            nameLabel.TextColor3 = Theme.text_primary
+            nameLabel.BackgroundColor3 = Theme.secondary
+            nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+            Instance.new("UICorner", nameLabel).CornerRadius = UDim.new(0, 6)
+            
+            local tpButton = Instance.new("TextButton", waypointFrame)
+            tpButton.Size = UDim2.new(0, 45, 1, 0)
+            tpButton.Position = UDim2.new(1, -95, 0, 0)
+            tpButton.Text = "TP"
+            tpButton.Font = Enum.Font.GothamBold
+            tpButton.BackgroundColor3 = Theme.accent
+            tpButton.TextColor3 = Theme.text_primary
+            Instance.new("UICorner", tpButton).CornerRadius = UDim.new(0, 6)
+            
+            local deleteButton = Instance.new("TextButton", waypointFrame)
+            deleteButton.Size = UDim2.new(0, 45, 1, 0)
+            deleteButton.Position = UDim2.new(1, -45, 0, 0)
+            deleteButton.Text = "X"
+            deleteButton.Font = Enum.Font.GothamBold
+            deleteButton.BackgroundColor3 = Theme.accent_danger
+            deleteButton.TextColor3 = Theme.text_primary
+            Instance.new("UICorner", deleteButton).CornerRadius = UDim.new(0, 6)
+            
+            tpButton.MouseButton1Click:Connect(function()
+                teleportToCFrame(waypointData.cframe)
+            end)
+            
+            deleteButton.MouseButton1Click:Connect(function()
+                table.remove(Waypoints, index)
+                refreshWaypointList()
+            end)
+        end
+    else
+        local noWaypointsLabel = Instance.new("TextLabel", WaypointListFrame)
+        noWaypointsLabel.Size = UDim2.new(1, -10, 0, 40)
+        noWaypointsLabel.Position = UDim2.new(0, 5, 0, 0)
+        noWaypointsLabel.Text = "No waypoints saved yet."
+        noWaypointsLabel.Font = Enum.Font.Gotham
+        noWaypointsLabel.TextSize = 16
+        noWaypointsLabel.TextColor3 = Theme.text_secondary
+        noWaypointsLabel.BackgroundTransparency = 1
+    end
+    WaypointListFrame.CanvasSize = UDim2.new(0, 0, 0, #Waypoints * (40 + WaypointListLayout.Padding.Offset) + 10)
+end
+
+AddWaypointButton.MouseButton1Click:Connect(function()
+    local waypointName = WaypointNameInput.Text
+    if waypointName and (waypointName:match("%S") and (LocalPlayer.Character and LocalPlayer.Character.PrimaryPart)) then
+        local waypointData = {
+            name = waypointName,
+            cframe = LocalPlayer.Character.PrimaryPart.CFrame
+        }
+        table.insert(Waypoints, waypointData)
+        WaypointNameInput.Text = ""
+        refreshWaypointList()
+    elseif not (waypointName and waypointName:match("%S")) then
+        local originalPlaceholder = WaypointNameInput.PlaceholderText
+        WaypointNameInput.PlaceholderText = "NAME CANNOT BE EMPTY!"
+        WaypointNameInput.PlaceholderColor3 = Theme.accent_danger
+        task.wait(2)
+        WaypointNameInput.PlaceholderText = originalPlaceholder
+        WaypointNameInput.PlaceholderColor3 = Theme.text_secondary
+    end
+end)
+
+local function refreshNpcList()
+    for _, child in ipairs(NpcListFrame:GetChildren()) do
+        if child:IsA("TextButton") or child:IsA("TextLabel") then
+            child:Destroy()
+        end
+    end
+
+    local npcCount = 0
+    for _, baseFolder in ipairs(BasesToScan) do
+        if baseFolder and baseFolder:FindFirstChild("Bases") then
+            for _, base in ipairs(baseFolder.Bases:GetChildren()) do
+                local floor1 = base:FindFirstChild("Floors")
+                if floor1 then
+                    floor1 = base.Floors:FindFirstChild("Floor1")
+                end
+                if floor1 and floor1:FindFirstChild("Interactables") then
+                    local stands = floor1.Interactables:FindFirstChild("Stands")
+                    if stands then
+                        for i = 1, 10 do
+                            local stand = stands:FindFirstChild(tostring(i))
+                            if stand and stand:FindFirstChild("NPC") then
+                                for _, npcModel in ipairs(stand.NPC:GetChildren()) do
+                                    if npcModel:IsA("Model") then
+                                        npcCount = npcCount + 1
+                                        local npcButton = Instance.new("TextButton", NpcListFrame)
+                                        npcButton.Size = UDim2.new(1, -10, 0, 45)
+                                        npcButton.Text = npcModel.Name .. " (" .. baseFolder.Name .. " - " .. base.Name .. ")"
+                                        npcButton.Font = Enum.Font.Gotham
+                                        npcButton.TextSize = 15
+                                        npcButton.BackgroundColor3 = Theme.secondary
+                                        npcButton.TextColor3 = Theme.text_primary
+                                        npcButton.LayoutOrder = npcCount
+                                        Instance.new("UICorner", npcButton).CornerRadius = UDim.new(0, 6)
+                                        
+                                        npcButton.MouseButton1Click:Connect(function()
+                                            teleportToModel(npcModel)
+                                        end)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    local newCanvasHeight = npcCount * (45 + NpcListLayout.Padding.Offset)
+    NpcListFrame.CanvasSize = UDim2.new(0, 0, 0, newCanvasHeight)
+    
+    if npcCount == 0 then
+        local noNpcLabel = Instance.new("TextLabel", NpcListFrame)
+        noNpcLabel.Name = "NoNpcLabel"
+        noNpcLabel.Size = UDim2.new(1, 0, 0, 40)
+        noNpcLabel.Position = UDim2.new(0, 0, 0, 5)
+        noNpcLabel.Text = "No NPCs found. Try refreshing."
+        noNpcLabel.Font = Enum.Font.Gotham
+        noNpcLabel.TextColor3 = Theme.text_secondary
+        noNpcLabel.BackgroundTransparency = 1
+    end
+end
+
+-- Initial setup
+RefreshNpcButton.MouseButton1Click:Connect(refreshNpcList)
+switchTab(NpcTabButton)
+refreshNpcList()
+refreshWaypointList()
+
+-- Auto-refresh loop
+task.spawn(function()
+    while true do
+        task.wait(10)
+        refreshNpcList()
+    end
+end)

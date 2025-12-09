@@ -1,0 +1,486 @@
+-- Deobfuscated by SouljaWitchSrc
+-- Load BloxHub Library
+local BloxHub = loadstring(game:HttpGet("https://raw.githubusercontent.com/ArtChivegroup/Roblox/refs/heads/main/script/addon/BloxHubUILib/source.lua"))()
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Variables
+local espEnabled = true
+local showInWorld = true
+local showInList = true
+local maxDistance = 500
+local textSize = 12
+local textColor = Color3.fromRGB(255, 255, 0)
+local worldLabels = {}
+local listLabels = {}
+
+-- Create Main Window
+local MainWindow = BloxHub:CreateWindow("ADVANCED INVENTORY ESP")
+
+-- Create Tabs
+local mainTab = MainWindow:CreateTab("Main")
+local settingsTab = MainWindow:CreateTab("Settings")
+local debugTab = MainWindow:CreateTab("Debug")
+
+-- ========== MAIN TAB ==========
+mainTab:AddLabel("Inventory ESP", {TextSize = 16, Bold = true})
+
+mainTab:AddToggle("Enable ESP", true, function(state)
+    espEnabled = state
+    BloxHub:Notify("Inventory ESP", "ESP is now " .. (state and "ON" or "OFF"), 2, "Info")
+end)
+
+mainTab:AddToggle("Show in World", true, function(state)
+    showInWorld = state
+end)
+
+mainTab:AddToggle("Show in List", true, function(state)
+    showInList = state
+    updateListVisibility()
+end)
+
+mainTab:AddDivider()
+
+mainTab:AddSlider("Max Distance", 50, 1000, 500, function(value)
+    maxDistance = value
+end)
+
+mainTab:AddSlider("Text Size", 8, 20, 12, function(value)
+    textSize = value
+end)
+
+mainTab:AddDivider()
+
+mainTab:AddButton("Refresh All Players", function()
+    refreshAllPlayers()
+    BloxHub:Notify("Refreshed", "All player data refreshed!", 2, "Success")
+end)
+
+-- ========== SETTINGS TAB ==========
+settingsTab:AddLabel("Display Settings", {TextSize = 16, Bold = true})
+
+settingsTab:AddDropdown("Text Color", {"Yellow", "White", "Green", "Red", "Cyan", "Pink"}, function(choice)
+    local colors = {
+        Yellow = Color3.fromRGB(255, 255, 0),
+        White = Color3.fromRGB(255, 255, 255),
+        Green = Color3.fromRGB(0, 255, 0),
+        Red = Color3.fromRGB(255, 0, 0),
+        Cyan = Color3.fromRGB(0, 255, 255),
+        Pink = Color3.fromRGB(255, 0, 127)
+    }
+    textColor = colors[choice]
+    BloxHub:Notify("Color", "Text color changed to " .. choice, 2, "Success")
+end)
+
+-- ========== DEBUG TAB ==========
+debugTab:AddLabel("Debug Info", {TextSize = 16, Bold = true})
+
+debugTab:AddButton("Print All Inventories", function()
+    printAllInventories()
+end)
+
+debugTab:AddButton("Monitor Specific Player", function()
+    -- Will implement player selection
+    BloxHub:Notify("Feature", "Select a player to monitor", 2, "Info")
+end)
+
+-- ========== LIST PANEL ==========
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "InventoryListGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = game.CoreGui
+
+local ListFrame = Instance.new("Frame")
+ListFrame.Size = UDim2.new(0, 350, 0, 500)
+ListFrame.Position = UDim2.new(1, -360, 0.5, -250)
+ListFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+ListFrame.BorderSizePixel = 2
+ListFrame.BorderColor3 = Color3.fromRGB(255, 255, 0)
+ListFrame.Active = true
+ListFrame.Draggable = true
+ListFrame.Visible = showInList
+ListFrame.Parent = ScreenGui
+
+local ListTitle = Instance.new("TextLabel")
+ListTitle.Size = UDim2.new(1, 0, 0, 30)
+ListTitle.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+ListTitle.BorderSizePixel = 0
+ListTitle.Text = "PLAYER INVENTORIES"
+ListTitle.TextColor3 = Color3.fromRGB(255, 255, 0)
+ListTitle.Font = Enum.Font.SourceSansBold
+ListTitle.TextSize = 14
+ListTitle.Parent = ListFrame
+
+local ScrollFrame = Instance.new("ScrollingFrame")
+ScrollFrame.Size = UDim2.new(1, -10, 1, -40)
+ScrollFrame.Position = UDim2.new(0, 5, 0, 35)
+ScrollFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+ScrollFrame.BorderSizePixel = 0
+ScrollFrame.ScrollBarThickness = 4
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+ScrollFrame.Parent = ListFrame
+
+local ListLayout = Instance.new("UIListLayout")
+ListLayout.Padding = UDim.new(0, 5)
+ListLayout.SortOrder = Enum.SortOrder.Name
+ListLayout.Parent = ScrollFrame
+
+function updateListVisibility()
+    ListFrame.Visible = showInList
+end
+
+-- ========== CORE INVENTORY FUNCTIONS ==========
+
+-- Recursively scan inventory folders
+local function scanInventoryFolder(folder, items, depth)
+    if depth <= 0 or not folder then return end
+    
+    for _, child in ipairs(folder:GetChildren()) do
+        -- Skip certain objects
+        if child:IsA("ObjectValue") and child.Name:find("Backpack") then
+            table.insert(items, {
+                name = child.Name,
+                type = "Backpack",
+                hasNested = child:FindFirstChild("Inventory") ~= nil
+            })
+            
+            -- Scan nested inventory
+            if child:FindFirstChild("Inventory") then
+                scanInventoryFolder(child.Inventory, items, depth - 1)
+            end
+        else
+            -- Regular items
+            table.insert(items, {
+                name = child.Name,
+                type = "Item",
+                hasNested = child:FindFirstChild("Inventory") ~= nil
+            })
+            
+            -- Scan nested if exists
+            if child:FindFirstChild("Inventory") then
+                scanInventoryFolder(child.Inventory, items, depth - 1)
+            end
+        end
+    end
+end
+
+-- Get all items from player's ReplicatedStorage data
+local function getPlayerInventory(player)
+    local items = {}
+    
+    -- Check if player data exists in ReplicatedStorage
+    local playerFolder = ReplicatedStorage:FindFirstChild("Players")
+    if not playerFolder then return items end
+    
+    local playerData = playerFolder:FindFirstChild(player.Name)
+    if not playerData then return items end
+    
+    -- 1. Get main inventory
+    local inventory = playerData:FindFirstChild("Inventory")
+    if inventory then
+        scanInventoryFolder(inventory, items, 5)
+    end
+    
+    -- 2. Get vault storage
+    local vaultStorage = playerData:FindFirstChild("VaultStorage")
+    if vaultStorage then
+        local vaultInv = vaultStorage:FindFirstChild("Inventory")
+        if vaultInv then
+            for _, item in ipairs(vaultInv:GetChildren()) do
+                table.insert(items, {
+                    name = item.Name .. " [Vault]",
+                    type = "Vault",
+                    hasNested = item:FindFirstChild("Inventory") ~= nil
+                })
+            end
+        end
+    end
+    
+    -- 3. Get equipped items from hotbar
+    local status = playerData:FindFirstChild("Status")
+    if status then
+        local gameplay = status:FindFirstChild("GameplayVariables")
+        if gameplay then
+            local hotbar = gameplay:FindFirstChild("Hotbar")
+            if hotbar then
+                for _, slot in ipairs(hotbar:GetChildren()) do
+                    if slot:IsA("ObjectValue") and slot.Value then
+                        table.insert(items, {
+                            name = slot.Value.Name .. " [Equipped]",
+                            type = "Hotbar"
+                        })
+                    end
+                end
+            end
+            
+            -- Check currently equipped tool
+            local equippedTool = gameplay:FindFirstChild("EquippedTool")
+            if equippedTool and equippedTool.Value then
+                table.insert(items, {
+                    name = equippedTool.Value.Name .. " [Active]",
+                    type = "Active"
+                })
+            end
+        end
+    end
+    
+    return items
+end
+
+-- Create world label for player
+function createWorldLabel(player)
+    if player == LocalPlayer then return end
+    
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "InventoryESP"
+    billboard.AlwaysOnTop = true
+    billboard.Size = UDim2.new(0, 300, 0, 200)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.Parent = game.CoreGui
+    
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Size = UDim2.new(1, 0, 1, 0)
+    textLabel.BackgroundTransparency = 1
+    textLabel.TextColor3 = textColor
+    textLabel.TextStrokeTransparency = 0.5
+    textLabel.TextSize = textSize
+    textLabel.Font = Enum.Font.SourceSansBold
+    textLabel.TextYAlignment = Enum.TextYAlignment.Top
+    textLabel.TextXAlignment = Enum.TextXAlignment.Left
+    textLabel.Parent = billboard
+    
+    worldLabels[player] = {billboard = billboard, label = textLabel}
+end
+
+-- Create list entry for player
+function createListEntry(player)
+    if player == LocalPlayer then return end
+    
+    local entryFrame = Instance.new("Frame")
+    entryFrame.Size = UDim2.new(1, -5, 0, 100)
+    entryFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+    entryFrame.BorderSizePixel = 1
+    entryFrame.BorderColor3 = Color3.fromRGB(60, 60, 65)
+    entryFrame.Parent = ScrollFrame
+    
+    local playerName = Instance.new("TextLabel")
+    playerName.Size = UDim2.new(1, -10, 0, 20)
+    playerName.Position = UDim2.new(0, 5, 0, 2)
+    playerName.BackgroundTransparency = 1
+    playerName.Text = player.Name
+    playerName.TextColor3 = Color3.fromRGB(255, 255, 100)
+    playerName.Font = Enum.Font.SourceSansBold
+    playerName.TextSize = 13
+    playerName.TextXAlignment = Enum.TextXAlignment.Left
+    playerName.Parent = entryFrame
+    
+    local itemsLabel = Instance.new("TextLabel")
+    itemsLabel.Size = UDim2.new(1, -10, 1, -25)
+    itemsLabel.Position = UDim2.new(0, 5, 0, 22)
+    itemsLabel.BackgroundTransparency = 1
+    itemsLabel.Text = "Loading..."
+    itemsLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    itemsLabel.Font = Enum.Font.SourceSans
+    itemsLabel.TextSize = 10
+    itemsLabel.TextXAlignment = Enum.TextXAlignment.Left
+    itemsLabel.TextYAlignment = Enum.TextYAlignment.Top
+    itemsLabel.TextWrapped = true
+    itemsLabel.Parent = entryFrame
+    
+    listLabels[player] = {frame = entryFrame, label = itemsLabel, nameLabel = playerName}
+end
+
+-- Update world labels
+function updateWorldLabels()
+    if not espEnabled or not showInWorld then
+        for player, data in pairs(worldLabels) do
+            data.billboard.Enabled = false
+        end
+        return
+    end
+    
+    for player, data in pairs(worldLabels) do
+        if player and player.Parent and player.Character and player.Character:FindFirstChild("Head") then
+            local head = player.Character.Head
+            local distance = (head.Position - Camera.CFrame.Position).Magnitude
+            
+            if distance <= maxDistance then
+                data.billboard.Adornee = head
+                data.billboard.Enabled = true
+                
+                local items = getPlayerInventory(player)
+                if #items > 0 then
+                    local displayText = player.Name .. " [" .. math.floor(distance) .. "m]\n"
+                    displayText = displayText .. "━━━━━━━━━━━━\n"
+                    
+                    -- Group items by type
+                    local grouped = {}
+                    for _, itemData in ipairs(items) do
+                        local category = itemData.type or "Unknown"
+                        if not grouped[category] then
+                            grouped[category] = {}
+                        end
+                        table.insert(grouped[category], itemData.name)
+                    end
+                    
+                    -- Display grouped items
+                    for category, itemNames in pairs(grouped) do
+                        displayText = displayText .. "▸ " .. category .. " (" .. #itemNames .. ")\n"
+                        for i, itemName in ipairs(itemNames) do
+                            if i <= 5 then -- Limit display
+                                displayText = displayText .. "  • " .. itemName .. "\n"
+                            end
+                        end
+                        if #itemNames > 5 then
+                            displayText = displayText .. "  ... and " .. (#itemNames - 5) .. " more\n"
+                        end
+                    end
+                    
+                    data.label.Text = displayText
+                    data.label.TextColor3 = textColor
+                    data.label.TextSize = textSize
+                else
+                    data.label.Text = player.Name .. " [" .. math.floor(distance) .. "m]\n(No items found)"
+                    data.label.TextColor3 = Color3.fromRGB(150, 150, 150)
+                    data.label.TextSize = textSize
+                end
+            else
+                data.billboard.Enabled = false
+            end
+        else
+            data.billboard.Enabled = false
+        end
+    end
+end
+
+-- Update list labels
+function updateListLabels()
+    if not espEnabled or not showInList then return end
+    
+    for player, data in pairs(listLabels) do
+        if player and player.Parent then
+            local items = getPlayerInventory(player)
+            
+            if #items > 0 then
+                local displayText = ""
+                
+                -- Group and display
+                local grouped = {}
+                for _, itemData in ipairs(items) do
+                    local category = itemData.type or "Unknown"
+                    if not grouped[category] then
+                        grouped[category] = {}
+                    end
+                    table.insert(grouped[category], itemData.name)
+                end
+                
+                for category, itemNames in pairs(grouped) do
+                    displayText = displayText .. "▸ " .. category .. " (" .. #itemNames .. ")\n"
+                    for _, itemName in ipairs(itemNames) do
+                        displayText = displayText .. "  • " .. itemName .. "\n"
+                    end
+                end
+                
+                data.label.Text = displayText
+                data.label.TextColor3 = Color3.fromRGB(200, 200, 200)
+            else
+                data.label.Text = "(No inventory data found)"
+                data.label.TextColor3 = Color3.fromRGB(120, 120, 120)
+            end
+            
+            -- Update frame height
+            local contentHeight = math.max(100, 30 + (#items * 12))
+            data.frame.Size = UDim2.new(1, -5, 0, math.min(contentHeight, 300))
+        end
+    end
+    
+    -- Update canvas size
+    ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, ListLayout.AbsoluteContentSize.Y + 10)
+end
+
+-- Remove labels
+function removeLabels(player)
+    if worldLabels[player] then
+        worldLabels[player].billboard:Destroy()
+        worldLabels[player] = nil
+    end
+    
+    if listLabels[player] then
+        listLabels[player].frame:Destroy()
+        listLabels[player] = nil
+    end
+end
+
+-- Refresh all players
+function refreshAllPlayers()
+    for player, _ in pairs(worldLabels) do
+        removeLabels(player)
+    end
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            createWorldLabel(player)
+            createListEntry(player)
+        end
+    end
+end
+
+-- ========== DEBUG FUNCTIONS ==========
+function printAllInventories()
+    print("=== PLAYER INVENTORIES ===\n")
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        local items = getPlayerInventory(player)
+        print("\n" .. player.Name .. " - " .. #items .. " items:")
+        for _, item in ipairs(items) do
+            print("  • " .. item.name .. " (" .. item.type .. ")")
+        end
+    end
+    
+    BloxHub:Notify("Debug", "Check console for inventory data", 3, "Info")
+end
+
+-- Initialize for existing players
+for _, player in ipairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        createWorldLabel(player)
+        createListEntry(player)
+    end
+end
+
+-- Handle new players
+Players.PlayerAdded:Connect(function(player)
+    task.wait(2) -- Wait for data to load
+    createWorldLabel(player)
+    createListEntry(player)
+end)
+
+-- Handle player removing
+Players.PlayerRemoving:Connect(removeLabels)
+
+-- Update loop
+RunService.Heartbeat:Connect(function()
+    updateWorldLabels()
+    updateListLabels()
+end)
+
+-- Create Floating Icon
+BloxHub:CreateFloatingIcon(MainWindow, {
+    Text = "INV",
+    ShowOnMinimize = true
+})
+
+-- Hotkey
+MainWindow:RegisterHotkey("ToggleList", Enum.KeyCode.I, function()
+    showInList = not showInList
+    updateListVisibility()
+    BloxHub:Notify("List Panel", "List is now " .. (showInList and "visible" or "hidden"), 2, "Info")
+end)
+
+-- Success notification
+BloxHub:Notify("BloxHub on devpeloment", 5, "Success")

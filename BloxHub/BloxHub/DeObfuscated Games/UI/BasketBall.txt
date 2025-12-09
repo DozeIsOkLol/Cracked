@@ -1,0 +1,138 @@
+-- Deobfuscated by SouljaWitchSrc
+
+
+local v1 = game.Players.LocalPlayer
+local vu2 = Instance.new("ScreenGui", v1.PlayerGui)
+vu2.Name = "AutoEHoldGUI"
+local vu3 = Instance.new("Frame", vu2)
+vu3.Size = UDim2.new(0.3, 0, 0.25, 0)
+vu3.Position = UDim2.new(0.35, 0, 0.4, 0)
+vu3.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+vu3.BorderSizePixel = 0
+vu3.Active = true
+vu3.Draggable = true
+local v4 = Instance.new("TextLabel", vu3)
+v4.Size = UDim2.new(1, 0, 0.2, 0)
+v4.Position = UDim2.new(0, 0, 0, 0)
+v4.Text = "Shot Release Timer"
+v4.TextScaled = true
+v4.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+v4.TextColor3 = Color3.new(1, 1, 1)
+local vu5 = Instance.new("TextBox", vu3)
+vu5.Size = UDim2.new(0.5, 0, 0.2, 0)
+vu5.Position = UDim2.new(0.05, 0, 0.25, 0)
+vu5.PlaceholderText = "Hold time"
+vu5.Text = "0.28"
+vu5.TextScaled = true
+vu5.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+vu5.TextColor3 = Color3.fromRGB(255, 255, 255)
+local v6 = Instance.new("TextButton", vu3)
+v6.Size = UDim2.new(0.15, 0, 0.2, 0)
+v6.Position = UDim2.new(0.57, 0, 0.25, 0)
+v6.Text = "+0.01"
+v6.TextScaled = true
+v6.BackgroundColor3 = Color3.fromRGB(80, 180, 80)
+v6.TextColor3 = Color3.new(1, 1, 1)
+local v7 = Instance.new("TextButton", vu3)
+v7.Size = UDim2.new(0.15, 0, 0.2, 0)
+v7.Position = UDim2.new(0.74, 0, 0.25, 0)
+v7.Text = "-0.01"
+v7.TextScaled = true
+v7.BackgroundColor3 = Color3.fromRGB(180, 80, 80)
+v7.TextColor3 = Color3.new(1, 1, 1)
+local v8 = Instance.new("TextLabel", vu3)
+v8.Size = UDim2.new(0.9, 0, 0.15, 0)
+v8.Position = UDim2.new(0.05, 0, 0.48, 0)
+v8.Text = "Adjust based on FPS or Network Delay"
+v8.TextColor3 = Color3.fromRGB(255, 255, 100)
+v8.BackgroundTransparency = 1
+v8.TextScaled = true
+local vu9 = Instance.new("TextLabel", vu3)
+vu9.Size = UDim2.new(0.9, 0, 0.15, 0)
+vu9.Position = UDim2.new(0.05, 0, 0.65, 0)
+vu9.BackgroundTransparency = 1
+vu9.TextColor3 = Color3.new(1, 1, 1)
+vu9.TextScaled = true
+vu9.Text = "Waiting for input..."
+local v10 = Instance.new("TextButton", vu3)
+v10.Size = UDim2.new(0.1, 0, 0.2, 0)
+v10.Position = UDim2.new(0.8, 0, 0, 0)
+v10.Text = "-"
+v10.TextScaled = true
+v10.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+v10.TextColor3 = Color3.new(1, 1, 1)
+local v11 = Instance.new("TextButton", vu3)
+v11.Size = UDim2.new(0.1, 0, 0.2, 0)
+v11.Position = UDim2.new(0.9, 0, 0, 0)
+v11.Text = "X"
+v11.TextScaled = true
+v11.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+v11.TextColor3 = Color3.new(1, 1, 1)
+local vu12 = Instance.new("TextButton", vu2)
+vu12.Size = UDim2.new(0, 50, 0, 50)
+vu12.Position = UDim2.new(0, 10, 0, 10)
+vu12.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
+vu12.TextColor3 = Color3.new(1, 1, 1)
+vu12.TextScaled = true
+vu12.Text = "E"
+vu12.Visible = false
+local vu13 = false
+local vu14 = Vector2.new()
+vu12.InputBegan:Connect(function(p15)
+    if p15.UserInputType == Enum.UserInputType.MouseButton1 then
+        vu13 = true
+        vu14 = p15.Position - vu12.Position
+    end
+end)
+vu12.InputEnded:Connect(function(p16)
+    if p16.UserInputType == Enum.UserInputType.MouseButton1 then
+        vu13 = false
+    end
+end)
+game:GetService("UserInputService").InputChanged:Connect(function(p17)
+    if vu13 and p17.UserInputType == Enum.UserInputType.MouseMovement then
+        vu12.Position = UDim2.new(0, p17.Position.X - vu14.X, 0, p17.Position.Y - vu14.Y)
+    end
+end)
+v10.MouseButton1Click:Connect(function()
+    vu3.Visible = false
+    vu12.Visible = true
+end)
+vu12.MouseButton1Click:Connect(function()
+    vu3.Visible = true
+    vu12.Visible = false
+end)
+v11.MouseButton1Click:Connect(function()
+    vu2:Destroy()
+end)
+local vu18 = 0.28
+v6.MouseButton1Click:Connect(function()
+    vu18 = vu18 + 0.01
+    vu5.Text = string.format("%.2f", vu18)
+end)
+v7.MouseButton1Click:Connect(function()
+    vu18 = math.max(0.01, vu18 - 0.01)
+    vu5.Text = string.format("%.2f", vu18)
+end)
+local v19 = game:GetService("UserInputService")
+local vu20 = game:GetService("VirtualInputManager")
+local vu21 = false
+v19.InputBegan:Connect(function(p22, p23)
+    if p22.KeyCode == Enum.KeyCode.E and not (p23 or vu21) then
+        local v24 = tonumber(vu5.Text)
+        if v24 and 0 < v24 then
+            vu18 = v24
+            vu21 = true
+            vu9.Text = "Holding E for " .. vu18 .. " sec"
+            vu20:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+            task.wait(vu18)
+            vu20:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+            vu9.Text = "Auto Released!"
+            task.wait(1)
+            vu9.Text = "Waiting for input..."
+            vu21 = false
+        else
+            vu9.Text = "Invalid number!"
+        end
+    end
+end)

@@ -1,0 +1,1448 @@
+-- Deobfuscated by SouljaWitchSrc
+
+-- Services
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+local CoreGui = game:GetService("CoreGui")
+
+-- Local Player
+local LocalPlayer = Players.LocalPlayer
+
+-- Configuration
+local logoAssetId = "rbxassetid://71512996518950"
+
+-- =============================================================
+--                        THE MAIN SCRIPT
+-- =============================================================
+-- This function contains the entire FPS Flick script.
+local function executeMainScript()
+    local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/DozeIsOkLol/Cracked/refs/heads/main/BloxHub/BloxHub/Addon/main.lua"))()
+    local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/DozeIsOkLol/Cracked/refs/heads/main/BloxHub/BloxHub/Addon/SaveManager.lua"))()
+    local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/DozeIsOkLol/Cracked/refs/heads/main/BloxHub/BloxHub/Addon/InterfaceManager.lua"))()
+
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local UserInputService = game:GetService("UserInputService")
+    local Camera = workspace.CurrentCamera
+    local LocalPlayer = Players.LocalPlayer
+
+    local Drawings = {
+        ESP = {},
+        Tracers = {},
+        Boxes = {},
+        Healthbars = {},
+        Names = {},
+        Distances = {},
+        Snaplines = {},
+        Skeleton = {}
+    }
+
+    local Colors = {
+        Enemy = Color3.fromRGB(255, 25, 25),
+        Ally = Color3.fromRGB(25, 255, 25),
+        Neutral = Color3.fromRGB(255, 255, 255),
+        Selected = Color3.fromRGB(255, 210, 0),
+        Health = Color3.fromRGB(0, 255, 0),
+        Distance = Color3.fromRGB(200, 200, 200),
+        Rainbow = nil
+    }
+
+    local Highlights = {}
+
+    local Settings = {
+        Enabled = true,
+        TeamCheck = false,
+        ShowTeam = false,
+        VisibilityCheck = true,
+        BoxESP = true,
+        BoxStyle = "Corner",
+        BoxOutline = true,
+        BoxFilled = false,
+        BoxFillTransparency = 0.5,
+        BoxThickness = 1,
+        TracerESP = true,
+        TracerOrigin = "Bottom",
+        TracerStyle = "Line",
+        TracerThickness = 1,
+        HealthESP = false,
+        HealthStyle = "Bar",
+        HealthBarSide = "Left",
+        HealthTextSuffix = "HP",
+        NameESP = false,
+        NameMode = "DisplayName",
+        ShowDistance = true,
+        DistanceUnit = "studs",
+        TextSize = 14,
+        TextFont = 2,
+        RainbowSpeed = 1,
+        MaxDistance = 1000,
+        RefreshRate = 1/144,
+        Snaplines = false,
+        SnaplineStyle = "Straight",
+        RainbowEnabled = false,
+        RainbowBoxes = false,
+        RainbowTracers = false,
+        RainbowText = false,
+        ChamsEnabled = true,
+        ChamsOutlineColor = Color3.fromRGB(255, 255, 255),
+        ChamsFillColor = Color3.fromRGB(255, 0, 0),
+        ChamsOccludedColor = Color3.fromRGB(150, 0, 0),
+        ChamsTransparency = 0.5,
+        ChamsOutlineTransparency = 0,
+        ChamsOutlineThickness = 0.1,
+        SkeletonESP = true,
+        SkeletonColor = Color3.fromRGB(255, 255, 255),
+        SkeletonThickness = 1.5,
+        SkeletonTransparency = 1,
+        
+        -- Aimbot Settings
+        AimbotEnabled = true,
+        AimbotMode = "Hold",
+        AimbotHoldKey = Enum.UserInputType.MouseButton2,
+        AimbotFOV = 100,
+        AimbotSmoothing = 0.5,
+        AimbotPart = "Head",
+        AimbotTeamCheck = false,
+        AimbotVisibleCheck = false,
+        ShowFOV = true,
+        FOVColor = Color3.fromRGB(255, 255, 255),
+        FOVTransparency = 0.5,
+        FOVFilled = false
+    }
+
+    -- Aimbot Variables
+    local aimbotActive = true
+    local fovCircle = Drawing.new("Circle")
+    fovCircle.Thickness = 2
+    fovCircle.NumSides = 64
+    fovCircle.Radius = Settings.AimbotFOV
+    fovCircle.Filled = Settings.FOVFilled
+    fovCircle.Color = Settings.FOVColor
+    fovCircle.Transparency = Settings.FOVTransparency
+    fovCircle.Visible = Settings.ShowFOV
+    fovCircle.ZIndex = 1000
+
+    local function UpdateFOVCircle()
+        local mousePos = UserInputService:GetMouseLocation()
+        fovCircle.Position = mousePos
+        fovCircle.Radius = Settings.AimbotFOV
+        fovCircle.Color = Settings.FOVColor
+        fovCircle.Transparency = Settings.FOVTransparency
+        fovCircle.Filled = Settings.FOVFilled
+        fovCircle.Visible = Settings.ShowFOV and Settings.AimbotEnabled
+    end
+
+    local function GetClosestPlayerToMouse()
+        local closestPlayer = nil
+        local shortestDistance = Settings.AimbotFOV
+        local mousePos = UserInputService:GetMouseLocation()
+        
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local character = player.Character
+                if character then
+                    -- Team check
+                    if Settings.AimbotTeamCheck and player.Team == LocalPlayer.Team then
+                        continue
+                    end
+                    
+                    local humanoid = character:FindFirstChild("Humanoid")
+                    if humanoid and humanoid.Health > 0 then
+                        local targetPart = character:FindFirstChild(Settings.AimbotPart)
+                        if targetPart then
+                            local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                            
+                            if onScreen then
+                                -- Visibility check
+                                if Settings.AimbotVisibleCheck then
+                                    local ray = Ray.new(
+                                        Camera.CFrame.Position,
+                                        (targetPart.Position - Camera.CFrame.Position).Unit * 1000
+                                    )
+                                    local hit = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, Camera})
+                                    
+                                    if hit and not character:IsAncestorOf(hit) then
+                                        continue
+                                    end
+                                end
+                                
+                                local screenPosition = Vector2.new(screenPos.X, screenPos.Y)
+                                local distance = (mousePos - screenPosition).Magnitude
+                                
+                                if distance < shortestDistance then
+                                    closestPlayer = player
+                                    shortestDistance = distance
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        
+        return closestPlayer
+    end
+
+    local function AimAt(player)
+        if not player or not player.Character then return end
+        
+        local targetPart = player.Character:FindFirstChild(Settings.AimbotPart)
+        if not targetPart then return end
+        
+        local targetPosition = targetPart.Position
+        local cameraPosition = Camera.CFrame.Position
+        
+        -- Calculate the direction with smoothing
+        local direction = (targetPosition - cameraPosition).Unit
+        local targetCFrame = CFrame.new(cameraPosition, cameraPosition + direction)
+        
+        -- Apply smoothing
+        if Settings.AimbotSmoothing > 0 then
+            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 1 - Settings.AimbotSmoothing)
+        else
+            Camera.CFrame = targetCFrame
+        end
+    end
+
+    -- Input handling for aimbot
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        
+        if Settings.AimbotEnabled then
+            if Settings.AimbotMode == "Hold" and input.UserInputType == Settings.AimbotHoldKey then
+                aimbotActive = true
+            end
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input, gameProcessed)
+        if Settings.AimbotMode == "Hold" and input.UserInputType == Settings.AimbotHoldKey then
+            aimbotActive = false
+        end
+    end)
+
+    local function CreateESP(player)
+        if player == LocalPlayer then return end
+        
+        local box = {
+            TopLeft = Drawing.new("Line"),
+            TopRight = Drawing.new("Line"),
+            BottomLeft = Drawing.new("Line"),
+            BottomRight = Drawing.new("Line"),
+            Left = Drawing.new("Line"),
+            Right = Drawing.new("Line"),
+            Top = Drawing.new("Line"),
+            Bottom = Drawing.new("Line")
+        }
+        
+        for _, line in pairs(box) do
+            line.Visible = false
+            line.Color = Colors.Enemy
+            line.Thickness = Settings.BoxThickness
+            if line == box.Fill then
+                line.Filled = true
+                line.Transparency = Settings.BoxFillTransparency
+            end
+        end
+        
+        local tracer = Drawing.new("Line")
+        tracer.Visible = false
+        tracer.Color = Colors.Enemy
+        tracer.Thickness = Settings.TracerThickness
+        
+        local healthBar = {
+            Outline = Drawing.new("Square"),
+            Fill = Drawing.new("Square"),
+            Text = Drawing.new("Text")
+        }
+        
+        for _, obj in pairs(healthBar) do
+            obj.Visible = false
+            if obj == healthBar.Fill then
+                obj.Color = Colors.Health
+                obj.Filled = true
+            elseif obj == healthBar.Text then
+                obj.Center = true
+                obj.Size = Settings.TextSize
+                obj.Color = Colors.Health
+                obj.Font = Settings.TextFont
+            end
+        end
+        
+        local info = {
+            Name = Drawing.new("Text"),
+            Distance = Drawing.new("Text")
+        }
+        
+        for _, text in pairs(info) do
+            text.Visible = false
+            text.Center = true
+            text.Size = Settings.TextSize
+            text.Color = Colors.Enemy
+            text.Font = Settings.TextFont
+            text.Outline = true
+        end
+        
+        local snapline = Drawing.new("Line")
+        snapline.Visible = false
+        snapline.Color = Colors.Enemy
+        snapline.Thickness = 1
+        
+        local highlight = Instance.new("Highlight")
+        highlight.FillColor = Settings.ChamsFillColor
+        highlight.OutlineColor = Settings.ChamsOutlineColor
+        highlight.FillTransparency = Settings.ChamsTransparency
+        highlight.OutlineTransparency = Settings.ChamsOutlineTransparency
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        highlight.Enabled = Settings.ChamsEnabled
+        
+        Highlights[player] = highlight
+        
+        local skeleton = {
+            Head = Drawing.new("Line"),
+            Neck = Drawing.new("Line"),
+            UpperSpine = Drawing.new("Line"),
+            LowerSpine = Drawing.new("Line"),
+            LeftShoulder = Drawing.new("Line"),
+            LeftUpperArm = Drawing.new("Line"),
+            LeftLowerArm = Drawing.new("Line"),
+            LeftHand = Drawing.new("Line"),
+            RightShoulder = Drawing.new("Line"),
+            RightUpperArm = Drawing.new("Line"),
+            RightLowerArm = Drawing.new("Line"),
+            RightHand = Drawing.new("Line"),
+            LeftHip = Drawing.new("Line"),
+            LeftUpperLeg = Drawing.new("Line"),
+            LeftLowerLeg = Drawing.new("Line"),
+            LeftFoot = Drawing.new("Line"),
+            RightHip = Drawing.new("Line"),
+            RightUpperLeg = Drawing.new("Line"),
+            RightLowerLeg = Drawing.new("Line"),
+            RightFoot = Drawing.new("Line")
+        }
+        
+        for _, line in pairs(skeleton) do
+            line.Visible = false
+            line.Color = Settings.SkeletonColor
+            line.Thickness = Settings.SkeletonThickness
+            line.Transparency = Settings.SkeletonTransparency
+        end
+        
+        Drawings.Skeleton[player] = skeleton
+        
+        Drawings.ESP[player] = {
+            Box = box,
+            Tracer = tracer,
+            HealthBar = healthBar,
+            Info = info,
+            Snapline = snapline
+        }
+    end
+
+    local function RemoveESP(player)
+        local esp = Drawings.ESP[player]
+        if esp then
+            for _, obj in pairs(esp.Box) do obj:Remove() end
+            esp.Tracer:Remove()
+            for _, obj in pairs(esp.HealthBar) do obj:Remove() end
+            for _, obj in pairs(esp.Info) do obj:Remove() end
+            esp.Snapline:Remove()
+            Drawings.ESP[player] = nil
+        end
+        
+        local highlight = Highlights[player]
+        if highlight then
+            highlight:Destroy()
+            Highlights[player] = nil
+        end
+        
+        local skeleton = Drawings.Skeleton[player]
+        if skeleton then
+            for _, line in pairs(skeleton) do
+                line:Remove()
+            end
+            Drawings.Skeleton[player] = nil
+        end
+    end
+
+    local function GetPlayerColor(player)
+        if Settings.RainbowEnabled then
+            if Settings.RainbowBoxes and Settings.BoxESP then return Colors.Rainbow end
+            if Settings.RainbowTracers and Settings.TracerESP then return Colors.Rainbow end
+            if Settings.RainbowText and (Settings.NameESP or Settings.HealthESP) then return Colors.Rainbow end
+        end
+        return player.Team == LocalPlayer.Team and Colors.Ally or Colors.Enemy
+    end
+
+    local function GetBoxCorners(cf, size)
+        local corners = {
+            Vector3.new(-size.X/2, -size.Y/2, -size.Z/2),
+            Vector3.new(-size.X/2, -size.Y/2, size.Z/2),
+            Vector3.new(-size.X/2, size.Y/2, -size.Z/2),
+            Vector3.new(-size.X/2, size.Y/2, size.Z/2),
+            Vector3.new(size.X/2, -size.Y/2, -size.Z/2),
+            Vector3.new(size.X/2, -size.Y/2, size.Z/2),
+            Vector3.new(size.X/2, size.Y/2, -size.Z/2),
+            Vector3.new(size.X/2, size.Y/2, size.Z/2)
+        }
+        
+        for i, corner in ipairs(corners) do
+            corners[i] = cf:PointToWorldSpace(corner)
+        end
+        
+        return corners
+    end
+
+    local function GetTracerOrigin()
+        local origin = Settings.TracerOrigin
+        if origin == "Bottom" then
+            return Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
+        elseif origin == "Top" then
+            return Vector2.new(Camera.ViewportSize.X/2, 0)
+        elseif origin == "Mouse" then
+            return UserInputService:GetMouseLocation()
+        else
+            return Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+        end
+    end
+
+    local function UpdateESP(player)
+        if not Settings.Enabled then return end
+        
+        local esp = Drawings.ESP[player]
+        if not esp then return end
+        
+        local character = player.Character
+        if not character then 
+            for _, obj in pairs(esp.Box) do obj.Visible = false end
+            esp.Tracer.Visible = false
+            for _, obj in pairs(esp.HealthBar) do obj.Visible = false end
+            for _, obj in pairs(esp.Info) do obj.Visible = false end
+            esp.Snapline.Visible = false
+            
+            local skeleton = Drawings.Skeleton[player]
+            if skeleton then
+                for _, line in pairs(skeleton) do
+                    line.Visible = false
+                end
+            end
+            return 
+        end
+        
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        if not rootPart then 
+            for _, obj in pairs(esp.Box) do obj.Visible = false end
+            esp.Tracer.Visible = false
+            for _, obj in pairs(esp.HealthBar) do obj.Visible = false end
+            for _, obj in pairs(esp.Info) do obj.Visible = false end
+            esp.Snapline.Visible = false
+            
+            local skeleton = Drawings.Skeleton[player]
+            if skeleton then
+                for _, line in pairs(skeleton) do
+                    line.Visible = false
+                end
+            end
+            return 
+        end
+        
+        local _, isOnScreen = Camera:WorldToViewportPoint(rootPart.Position)
+        if not isOnScreen then
+            for _, obj in pairs(esp.Box) do obj.Visible = false end
+            esp.Tracer.Visible = false
+            for _, obj in pairs(esp.HealthBar) do obj.Visible = false end
+            for _, obj in pairs(esp.Info) do obj.Visible = false end
+            esp.Snapline.Visible = false
+            
+            local skeleton = Drawings.Skeleton[player]
+            if skeleton then
+                for _, line in pairs(skeleton) do
+                    line.Visible = false
+                end
+            end
+            return
+        end
+        
+        local humanoid = character:FindFirstChild("Humanoid")
+        if not humanoid or humanoid.Health <= 0 then
+            for _, obj in pairs(esp.Box) do obj.Visible = false end
+            esp.Tracer.Visible = false
+            for _, obj in pairs(esp.HealthBar) do obj.Visible = false end
+            for _, obj in pairs(esp.Info) do obj.Visible = false end
+            esp.Snapline.Visible = false
+            
+            local skeleton = Drawings.Skeleton[player]
+            if skeleton then
+                for _, line in pairs(skeleton) do
+                    line.Visible = false
+                end
+            end
+            return
+        end
+        
+        local pos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+        local distance = (rootPart.Position - Camera.CFrame.Position).Magnitude
+        
+        if not onScreen or distance > Settings.MaxDistance then
+            for _, obj in pairs(esp.Box) do obj.Visible = false end
+            esp.Tracer.Visible = false
+            for _, obj in pairs(esp.HealthBar) do obj.Visible = false end
+            for _, obj in pairs(esp.Info) do obj.Visible = false end
+            esp.Snapline.Visible = false
+            return
+        end
+        
+        if Settings.TeamCheck and player.Team == LocalPlayer.Team and not Settings.ShowTeam then
+            for _, obj in pairs(esp.Box) do obj.Visible = false end
+            esp.Tracer.Visible = false
+            for _, obj in pairs(esp.HealthBar) do obj.Visible = false end
+            for _, obj in pairs(esp.Info) do obj.Visible = false end
+            esp.Snapline.Visible = false
+            return
+        end
+        
+        local color = GetPlayerColor(player)
+        local size = character:GetExtentsSize()
+        local cf = rootPart.CFrame
+        
+        local top, top_onscreen = Camera:WorldToViewportPoint(cf * CFrame.new(0, size.Y/2, 0).Position)
+        local bottom, bottom_onscreen = Camera:WorldToViewportPoint(cf * CFrame.new(0, -size.Y/2, 0).Position)
+        
+        if not top_onscreen or not bottom_onscreen then
+            for _, obj in pairs(esp.Box) do obj.Visible = false end
+            return
+        end
+        
+        local screenSize = bottom.Y - top.Y
+        local boxWidth = screenSize * 0.65
+        local boxPosition = Vector2.new(top.X - boxWidth/2, top.Y)
+        local boxSize = Vector2.new(boxWidth, screenSize)
+        
+        for _, obj in pairs(esp.Box) do
+            obj.Visible = false
+        end
+        
+        if Settings.BoxESP then
+            if Settings.BoxStyle == "Corner" then
+                local cornerSize = boxWidth * 0.2
+                
+                esp.Box.TopLeft.From = boxPosition
+                esp.Box.TopLeft.To = boxPosition + Vector2.new(cornerSize, 0)
+                esp.Box.TopLeft.Visible = true
+                
+                esp.Box.TopRight.From = boxPosition + Vector2.new(boxSize.X, 0)
+                esp.Box.TopRight.To = boxPosition + Vector2.new(boxSize.X - cornerSize, 0)
+                esp.Box.TopRight.Visible = true
+                
+                esp.Box.BottomLeft.From = boxPosition + Vector2.new(0, boxSize.Y)
+                esp.Box.BottomLeft.To = boxPosition + Vector2.new(cornerSize, boxSize.Y)
+                esp.Box.BottomLeft.Visible = true
+                
+                esp.Box.BottomRight.From = boxPosition + Vector2.new(boxSize.X, boxSize.Y)
+                esp.Box.BottomRight.To = boxPosition + Vector2.new(boxSize.X - cornerSize, boxSize.Y)
+                esp.Box.BottomRight.Visible = true
+                
+                esp.Box.Left.From = boxPosition
+                esp.Box.Left.To = boxPosition + Vector2.new(0, cornerSize)
+                esp.Box.Left.Visible = true
+                
+                esp.Box.Right.From = boxPosition + Vector2.new(boxSize.X, 0)
+                esp.Box.Right.To = boxPosition + Vector2.new(boxSize.X, cornerSize)
+                esp.Box.Right.Visible = true
+                
+                esp.Box.Top.From = boxPosition + Vector2.new(0, boxSize.Y)
+                esp.Box.Top.To = boxPosition + Vector2.new(0, boxSize.Y - cornerSize)
+                esp.Box.Top.Visible = true
+                
+                esp.Box.Bottom.From = boxPosition + Vector2.new(boxSize.X, boxSize.Y)
+                esp.Box.Bottom.To = boxPosition + Vector2.new(boxSize.X, boxSize.Y - cornerSize)
+                esp.Box.Bottom.Visible = true
+                
+            else
+                esp.Box.Left.From = boxPosition
+                esp.Box.Left.To = boxPosition + Vector2.new(0, boxSize.Y)
+                esp.Box.Left.Visible = true
+                
+                esp.Box.Right.From = boxPosition + Vector2.new(boxSize.X, 0)
+                esp.Box.Right.To = boxPosition + Vector2.new(boxSize.X, boxSize.Y)
+                esp.Box.Right.Visible = true
+                
+                esp.Box.Top.From = boxPosition
+                esp.Box.Top.To = boxPosition + Vector2.new(boxSize.X, 0)
+                esp.Box.Top.Visible = true
+                
+                esp.Box.Bottom.From = boxPosition + Vector2.new(0, boxSize.Y)
+                esp.Box.Bottom.To = boxPosition + Vector2.new(boxSize.X, boxSize.Y)
+                esp.Box.Bottom.Visible = true
+            end
+            
+            for _, obj in pairs(esp.Box) do
+                if obj.Visible then
+                    obj.Color = color
+                    obj.Thickness = Settings.BoxThickness
+                end
+            end
+        end
+        
+        if Settings.TracerESP then
+            esp.Tracer.From = GetTracerOrigin()
+            esp.Tracer.To = Vector2.new(pos.X, pos.Y)
+            esp.Tracer.Color = color
+            esp.Tracer.Visible = true
+        else
+            esp.Tracer.Visible = false
+        end
+        
+        if Settings.HealthESP then
+            local health = humanoid.Health
+            local maxHealth = humanoid.MaxHealth
+            local healthPercent = health/maxHealth
+            
+            local barHeight = screenSize * 0.8
+            local barWidth = 4
+            local barPos = Vector2.new(
+                boxPosition.X - barWidth - 2,
+                boxPosition.Y + (screenSize - barHeight)/2
+            )
+            
+            esp.HealthBar.Outline.Size = Vector2.new(barWidth, barHeight)
+            esp.HealthBar.Outline.Position = barPos
+            esp.HealthBar.Outline.Visible = true
+            
+            esp.HealthBar.Fill.Size = Vector2.new(barWidth - 2, barHeight * healthPercent)
+            esp.HealthBar.Fill.Position = Vector2.new(barPos.X + 1, barPos.Y + barHeight * (1-healthPercent))
+            esp.HealthBar.Fill.Color = Color3.fromRGB(255 - (255 * healthPercent), 255 * healthPercent, 0)
+            esp.HealthBar.Fill.Visible = true
+            
+            if Settings.HealthStyle == "Both" or Settings.HealthStyle == "Text" then
+                esp.HealthBar.Text.Text = math.floor(health) .. Settings.HealthTextSuffix
+                esp.HealthBar.Text.Position = Vector2.new(barPos.X + barWidth + 2, barPos.Y + barHeight/2)
+                esp.HealthBar.Text.Visible = true
+            else
+                esp.HealthBar.Text.Visible = false
+            end
+        else
+            for _, obj in pairs(esp.HealthBar) do
+                obj.Visible = false
+            end
+        end
+        
+        if Settings.NameESP then
+            esp.Info.Name.Text = player.DisplayName
+            esp.Info.Name.Position = Vector2.new(
+                boxPosition.X + boxWidth/2,
+                boxPosition.Y - 20
+            )
+            esp.Info.Name.Color = color
+            esp.Info.Name.Visible = true
+        else
+            esp.Info.Name.Visible = false
+        end
+        
+        if Settings.Snaplines then
+            esp.Snapline.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
+            esp.Snapline.To = Vector2.new(pos.X, pos.Y)
+            esp.Snapline.Color = color
+            esp.Snapline.Visible = true
+        else
+            esp.Snapline.Visible = false
+        end
+        
+        local highlight = Highlights[player]
+        if highlight then
+            if Settings.ChamsEnabled and character then
+                highlight.Parent = character
+                highlight.FillColor = Settings.ChamsFillColor
+                highlight.OutlineColor = Settings.ChamsOutlineColor
+                highlight.FillTransparency = Settings.ChamsTransparency
+                highlight.OutlineTransparency = Settings.ChamsOutlineTransparency
+                highlight.Enabled = true
+            else
+                highlight.Enabled = false
+            end
+        end
+        
+        if Settings.SkeletonESP then
+            local function getBonePositions(character)
+                if not character then return nil end
+                
+                local bones = {
+                    Head = character:FindFirstChild("Head"),
+                    UpperTorso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso"),
+                    LowerTorso = character:FindFirstChild("LowerTorso") or character:FindFirstChild("Torso"),
+                    RootPart = character:FindFirstChild("HumanoidRootPart"),
+                    LeftUpperArm = character:FindFirstChild("LeftUpperArm") or character:FindFirstChild("Left Arm"),
+                    LeftLowerArm = character:FindFirstChild("LeftLowerArm") or character:FindFirstChild("Left Arm"),
+                    LeftHand = character:FindFirstChild("LeftHand") or character:FindFirstChild("Left Arm"),
+                    RightUpperArm = character:FindFirstChild("RightUpperArm") or character:FindFirstChild("Right Arm"),
+                    RightLowerArm = character:FindFirstChild("RightLowerArm") or character:FindFirstChild("Right Arm"),
+                    RightHand = character:FindFirstChild("RightHand") or character:FindFirstChild("Right Arm"),
+                    LeftUpperLeg = character:FindFirstChild("LeftUpperLeg") or character:FindFirstChild("Left Leg"),
+                    LeftLowerLeg = character:FindFirstChild("LeftLowerLeg") or character:FindFirstChild("Left Leg"),
+                    LeftFoot = character:FindFirstChild("LeftFoot") or character:FindFirstChild("Left Leg"),
+                    RightUpperLeg = character:FindFirstChild("RightUpperLeg") or character:FindFirstChild("Right Leg"),
+                    RightLowerLeg = character:FindFirstChild("RightLowerLeg") or character:FindFirstChild("Right Leg"),
+                    RightFoot = character:FindFirstChild("RightFoot") or character:FindFirstChild("Right Leg")
+                }
+                
+                if not (bones.Head and bones.UpperTorso) then return nil end
+                return bones
+            end
+            
+            local function drawBone(from, to, line)
+                if not from or not to then 
+                    line.Visible = false
+                    return 
+                end
+                
+                local fromPos = (from.CFrame * CFrame.new(0, 0, 0)).Position
+                local toPos = (to.CFrame * CFrame.new(0, 0, 0)).Position
+                
+                local fromScreen, fromVisible = Camera:WorldToViewportPoint(fromPos)
+                local toScreen, toVisible = Camera:WorldToViewportPoint(toPos)
+                
+                if not (fromVisible and toVisible) or fromScreen.Z < 0 or toScreen.Z < 0 then
+                    line.Visible = false
+                    return
+                end
+                
+                local screenBounds = Camera.ViewportSize
+                if fromScreen.X < 0 or fromScreen.X > screenBounds.X or
+                   fromScreen.Y < 0 or fromScreen.Y > screenBounds.Y or
+                   toScreen.X < 0 or toScreen.X > screenBounds.X or
+                   toScreen.Y < 0 or toScreen.Y > screenBounds.Y then
+                    line.Visible = false
+                    return
+                end
+                
+                line.From = Vector2.new(fromScreen.X, fromScreen.Y)
+                line.To = Vector2.new(toScreen.X, toScreen.Y)
+                line.Color = Settings.SkeletonColor
+                line.Thickness = Settings.SkeletonThickness
+                line.Transparency = Settings.SkeletonTransparency
+                line.Visible = true
+            end
+            
+            local bones = getBonePositions(character)
+            if bones then
+                local skeleton = Drawings.Skeleton[player]
+                if skeleton then
+                    drawBone(bones.Head, bones.UpperTorso, skeleton.Head)
+                    drawBone(bones.UpperTorso, bones.LowerTorso, skeleton.UpperSpine)
+                    drawBone(bones.UpperTorso, bones.LeftUpperArm, skeleton.LeftShoulder)
+                    drawBone(bones.LeftUpperArm, bones.LeftLowerArm, skeleton.LeftUpperArm)
+                    drawBone(bones.LeftLowerArm, bones.LeftHand, skeleton.LeftLowerArm)
+                    drawBone(bones.UpperTorso, bones.RightUpperArm, skeleton.RightShoulder)
+                    drawBone(bones.RightUpperArm, bones.RightLowerArm, skeleton.RightUpperArm)
+                    drawBone(bones.RightLowerArm, bones.RightHand, skeleton.RightLowerArm)
+                    drawBone(bones.LowerTorso, bones.LeftUpperLeg, skeleton.LeftHip)
+                    drawBone(bones.LeftUpperLeg, bones.LeftLowerLeg, skeleton.LeftUpperLeg)
+                    drawBone(bones.LeftLowerLeg, bones.LeftFoot, skeleton.LeftLowerLeg)
+                    drawBone(bones.LowerTorso, bones.RightUpperLeg, skeleton.RightHip)
+                    drawBone(bones.RightUpperLeg, bones.RightLowerLeg, skeleton.RightUpperLeg)
+                    drawBone(bones.RightLowerLeg, bones.RightFoot, skeleton.RightLowerLeg)
+                end
+            end
+        else
+            local skeleton = Drawings.Skeleton[player]
+            if skeleton then
+                for _, line in pairs(skeleton) do
+                    line.Visible = false
+                end
+            end
+        end
+    end
+
+    local function DisableESP()
+        for _, player in ipairs(Players:GetPlayers()) do
+            local esp = Drawings.ESP[player]
+            if esp then
+                for _, obj in pairs(esp.Box) do obj.Visible = false end
+                esp.Tracer.Visible = false
+                for _, obj in pairs(esp.HealthBar) do obj.Visible = false end
+                for _, obj in pairs(esp.Info) do obj.Visible = false end
+                esp.Snapline.Visible = false
+            end
+            
+            local skeleton = Drawings.Skeleton[player]
+            if skeleton then
+                for _, line in pairs(skeleton) do
+                    line.Visible = false
+                end
+            end
+        end
+    end
+
+    local function CleanupESP()
+        for _, player in ipairs(Players:GetPlayers()) do
+            RemoveESP(player)
+        end
+        Drawings.ESP = {}
+        Drawings.Skeleton = {}
+        Highlights = {}
+        if fovCircle then
+            fovCircle:Remove()
+        end
+    end
+
+    local Window = Fluent:CreateWindow({
+        Title = "BloxHub ESP + Aimbot",
+        SubTitle = "BloxHub (Cracked by SouljaWitchSrc)",
+        TabWidth = 160,
+        Size = UDim2.fromOffset(580, 460),
+        Acrylic = false,
+        Theme = "Dark",
+        MinimizeKey = Enum.KeyCode.LeftControl
+    })
+
+    local Tabs = {
+        Aimbot = Window:AddTab({ Title = "Aimbot", Icon = "crosshair" }),
+        ESP = Window:AddTab({ Title = "ESP", Icon = "eye" }),
+        Settings = Window:AddTab({ Title = "Settings", Icon = "settings" }),
+        Config = Window:AddTab({ Title = "Config", Icon = "save" })
+    }
+
+    -- Aimbot Tab
+    do
+        local MainAimbotSection = Tabs.Aimbot:AddSection("Main Aimbot")
+        
+        local AimbotToggle = MainAimbotSection:AddToggle("AimbotEnabled", {
+            Title = "Enable Aimbot",
+            Default = true
+        })
+        AimbotToggle:OnChanged(function()
+            Settings.AimbotEnabled = AimbotToggle.Value
+            fovCircle.Visible = Settings.ShowFOV and Settings.AimbotEnabled
+        end)
+        
+        local AimbotModeDropdown = MainAimbotSection:AddDropdown("AimbotMode", {
+            Title = "Aimbot Mode",
+            Values = {"Hold", "Auto"},
+            Default = "Hold"
+        })
+        AimbotModeDropdown:OnChanged(function(Value)
+            Settings.AimbotMode = Value
+            if Value == "Auto" then
+                aimbotActive = true
+            else
+                aimbotActive = false
+            end
+        end)
+        
+        local AimbotPartDropdown = MainAimbotSection:AddDropdown("AimbotPart", {
+            Title = "Target Part",
+            Values = {"Head", "HumanoidRootPart", "UpperTorso", "LowerTorso"},
+            Default = "Head"
+        })
+        AimbotPartDropdown:OnChanged(function(Value)
+            Settings.AimbotPart = Value
+        end)
+        
+        local AimbotSettingsSection = Tabs.Aimbot:AddSection("Aimbot Settings")
+        
+        local AimbotFOV = AimbotSettingsSection:AddSlider("AimbotFOV", {
+            Title = "FOV Size",
+            Description = "Aimbot field of view",
+            Default = 100,
+            Min = 20,
+            Max = 500,
+            Rounding = 0
+        })
+        AimbotFOV:OnChanged(function(Value)
+            Settings.AimbotFOV = Value
+        end)
+        
+        local AimbotSmoothing = AimbotSettingsSection:AddSlider("AimbotSmoothing", {
+            Title = "Smoothing",
+            Description = "Higher = smoother (0 = instant)",
+            Default = 0.5,
+            Min = 0,
+            Max = 0.95,
+            Rounding = 2
+        })
+        AimbotSmoothing:OnChanged(function(Value)
+            Settings.AimbotSmoothing = Value
+        end)
+        
+        local AimbotTeamCheck = AimbotSettingsSection:AddToggle("AimbotTeamCheck", {
+            Title = "Team Check",
+            Description = "Don't aim at teammates",
+            Default = false
+        })
+        AimbotTeamCheck:OnChanged(function()
+            Settings.AimbotTeamCheck = AimbotTeamCheck.Value
+        end)
+        
+        local AimbotVisibleCheck = AimbotSettingsSection:AddToggle("AimbotVisibleCheck", {
+            Title = "Visible Check",
+            Description = "Only aim at visible targets",
+            Default = false
+        })
+        AimbotVisibleCheck:OnChanged(function()
+            Settings.AimbotVisibleCheck = AimbotVisibleCheck.Value
+        end)
+        
+        local FOVSection = Tabs.Aimbot:AddSection("FOV Circle")
+        
+        local ShowFOV = FOVSection:AddToggle("ShowFOV", {
+            Title = "Show FOV Circle",
+            Default = true
+        })
+        ShowFOV:OnChanged(function()
+            Settings.ShowFOV = ShowFOV.Value
+            fovCircle.Visible = Settings.ShowFOV and Settings.AimbotEnabled
+        end)
+        
+        local FOVColor = FOVSection:AddColorpicker("FOVColor", {
+            Title = "FOV Color",
+            Default = Settings.FOVColor
+        })
+        FOVColor:OnChanged(function(Value)
+            Settings.FOVColor = Value
+        end)
+        
+        local FOVTransparency = FOVSection:AddSlider("FOVTransparency", {
+            Title = "FOV Transparency",
+            Default = 0.5,
+            Min = 0,
+            Max = 1,
+            Rounding = 2
+        })
+        FOVTransparency:OnChanged(function(Value)
+            Settings.FOVTransparency = Value
+        end)
+        
+        local FOVFilled = FOVSection:AddToggle("FOVFilled", {
+            Title = "Filled FOV",
+            Default = false
+        })
+        FOVFilled:OnChanged(function()
+            Settings.FOVFilled = FOVFilled.Value
+        end)
+        
+        MainAimbotSection:AddParagraph({
+            Title = "Controls",
+            Content = "Hold Mode: Hold Right Mouse Button to aim\nAuto Mode: Automatically aims at closest target"
+        })
+    end
+
+    -- ESP Tab
+    do
+        local MainSection = Tabs.ESP:AddSection("Main ESP")
+        
+        local EnabledToggle = MainSection:AddToggle("Enabled", {
+            Title = "Enable ESP",
+            Default = true
+        })
+        EnabledToggle:OnChanged(function()
+            Settings.Enabled = EnabledToggle.Value
+            if not Settings.Enabled then
+                CleanupESP()
+            else
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer then
+                        CreateESP(player)
+                    end
+                end
+            end
+        end)
+        
+        local TeamCheckToggle = MainSection:AddToggle("TeamCheck", {
+            Title = "Team Check",
+            Default = false
+        })
+        TeamCheckToggle:OnChanged(function()
+            Settings.TeamCheck = TeamCheckToggle.Value
+        end)
+        
+        local ShowTeamToggle = MainSection:AddToggle("ShowTeam", {
+            Title = "Show Team",
+            Default = false
+        })
+        ShowTeamToggle:OnChanged(function()
+            Settings.ShowTeam = ShowTeamToggle.Value
+        end)
+        
+        local BoxSection = Tabs.ESP:AddSection("Box ESP")
+        
+        local BoxESPToggle = BoxSection:AddToggle("BoxESP", {
+            Title = "Box ESP",
+            Default = true
+        })
+        BoxESPToggle:OnChanged(function()
+            Settings.BoxESP = BoxESPToggle.Value
+        end)
+        
+        local BoxStyleDropdown = BoxSection:AddDropdown("BoxStyle", {
+            Title = "Box Style",
+            Values = {"Corner", "Full", "ThreeD"},
+            Default = "Corner"
+        })
+        BoxStyleDropdown:OnChanged(function(Value)
+            Settings.BoxStyle = Value
+        end)
+        
+        local TracerSection = Tabs.ESP:AddSection("Tracer ESP")
+        
+        local TracerESPToggle = TracerSection:AddToggle("TracerESP", {
+            Title = "Tracer ESP",
+            Default = true
+        })
+        TracerESPToggle:OnChanged(function()
+            Settings.TracerESP = TracerESPToggle.Value
+        end)
+        
+        local TracerOriginDropdown = TracerSection:AddDropdown("TracerOrigin", {
+            Title = "Tracer Origin",
+            Values = {"Bottom", "Top", "Mouse", "Center"},
+            Default = "Bottom"
+        })
+        TracerOriginDropdown:OnChanged(function(Value)
+            Settings.TracerOrigin = Value
+        end)
+        
+        local ChamsSection = Tabs.ESP:AddSection("Chams")
+        
+        local ChamsToggle = ChamsSection:AddToggle("ChamsEnabled", {
+            Title = "Enable Chams",
+            Default = true
+        })
+        ChamsToggle:OnChanged(function()
+            Settings.ChamsEnabled = ChamsToggle.Value
+        end)
+        
+        local ChamsFillColor = ChamsSection:AddColorpicker("ChamsFillColor", {
+            Title = "Fill Color",
+            Description = "Color for visible parts",
+            Default = Settings.ChamsFillColor
+        })
+        ChamsFillColor:OnChanged(function(Value)
+            Settings.ChamsFillColor = Value
+        end)
+        
+        local ChamsOccludedColor = ChamsSection:AddColorpicker("ChamsOccludedColor", {
+            Title = "Occluded Color",
+            Description = "Color for parts behind walls",
+            Default = Settings.ChamsOccludedColor
+        })
+        ChamsOccludedColor:OnChanged(function(Value)
+            Settings.ChamsOccludedColor = Value
+        end)
+        
+        local ChamsOutlineColor = ChamsSection:AddColorpicker("ChamsOutlineColor", {
+            Title = "Outline Color",
+            Description = "Color for character outline",
+            Default = Settings.ChamsOutlineColor
+        })
+        ChamsOutlineColor:OnChanged(function(Value)
+            Settings.ChamsOutlineColor = Value
+        end)
+        
+        local ChamsTransparency = ChamsSection:AddSlider("ChamsTransparency", {
+            Title = "Fill Transparency",
+            Description = "Transparency of the fill color",
+            Default = 0.5,
+            Min = 0,
+            Max = 1,
+            Rounding = 2
+        })
+        ChamsTransparency:OnChanged(function(Value)
+            Settings.ChamsTransparency = Value
+        end)
+        
+        local HealthSection = Tabs.ESP:AddSection("Health ESP")
+        
+        local HealthESPToggle = HealthSection:AddToggle("HealthESP", {
+            Title = "Health Bar",
+            Default = false
+        })
+        HealthESPToggle:OnChanged(function()
+            Settings.HealthESP = HealthESPToggle.Value
+        end)
+        
+        local HealthStyleDropdown = HealthSection:AddDropdown("HealthStyle", {
+            Title = "Health Style",
+            Values = {"Bar", "Text", "Both"},
+            Default = "Bar"
+        })
+        HealthStyleDropdown:OnChanged(function(Value)
+            Settings.HealthStyle = Value
+        end)
+        
+        local SkeletonSection = Tabs.ESP:AddSection("Skeleton ESP")
+        
+        local SkeletonESPToggle = SkeletonSection:AddToggle("SkeletonESP", {
+            Title = "Skeleton ESP",
+            Default = true
+        })
+        SkeletonESPToggle:OnChanged(function()
+            Settings.SkeletonESP = SkeletonESPToggle.Value
+        end)
+        
+        local SkeletonColor = SkeletonSection:AddColorpicker("SkeletonColor", {
+            Title = "Skeleton Color",
+            Default = Settings.SkeletonColor
+        })
+        SkeletonColor:OnChanged(function(Value)
+            Settings.SkeletonColor = Value
+        end)
+        
+        local SkeletonThickness = SkeletonSection:AddSlider("SkeletonThickness", {
+            Title = "Line Thickness",
+            Default = 1.5,
+            Min = 1,
+            Max = 3,
+            Rounding = 1
+        })
+        SkeletonThickness:OnChanged(function(Value)
+            Settings.SkeletonThickness = Value
+        end)
+    end
+
+    -- Settings Tab
+    do
+        local ColorsSection = Tabs.Settings:AddSection("Colors")
+        
+        local EnemyColor = ColorsSection:AddColorpicker("EnemyColor", {
+            Title = "Enemy Color",
+            Description = "Color for enemy players",
+            Default = Colors.Enemy
+        })
+        EnemyColor:OnChanged(function(Value)
+            Colors.Enemy = Value
+        end)
+        
+        local AllyColor = ColorsSection:AddColorpicker("AllyColor", {
+            Title = "Ally Color",
+            Description = "Color for team members",
+            Default = Colors.Ally
+        })
+        AllyColor:OnChanged(function(Value)
+            Colors.Ally = Value
+        end)
+        
+        local HealthColor = ColorsSection:AddColorpicker("HealthColor", {
+            Title = "Health Bar Color",
+            Description = "Color for full health",
+            Default = Colors.Health
+        })
+        HealthColor:OnChanged(function(Value)
+            Colors.Health = Value
+        end)
+        
+        local BoxSection = Tabs.Settings:AddSection("Box Settings")
+        
+        local BoxThickness = BoxSection:AddSlider("BoxThickness", {
+            Title = "Box Thickness",
+            Default = 1,
+            Min = 1,
+            Max = 5,
+            Rounding = 1
+        })
+        BoxThickness:OnChanged(function(Value)
+            Settings.BoxThickness = Value
+        end)
+        
+        local ESPSection = Tabs.Settings:AddSection("ESP Settings")
+        
+        local MaxDistance = ESPSection:AddSlider("MaxDistance", {
+            Title = "Max Distance",
+            Default = 1000,
+            Min = 100,
+            Max = 5000,
+            Rounding = 0
+        })
+        MaxDistance:OnChanged(function(Value)
+            Settings.MaxDistance = Value
+        end)
+        
+        local TextSize = ESPSection:AddSlider("TextSize", {
+            Title = "Text Size",
+            Default = 14,
+            Min = 10,
+            Max = 24,
+            Rounding = 0
+        })
+        TextSize:OnChanged(function(Value)
+            Settings.TextSize = Value
+        end)
+        
+        local EffectsSection = Tabs.Settings:AddSection("Effects")
+        
+        local RainbowToggle = EffectsSection:AddToggle("RainbowEnabled", {
+            Title = "Rainbow Mode",
+            Default = false
+        })
+        RainbowToggle:OnChanged(function()
+            Settings.RainbowEnabled = RainbowToggle.Value
+        end)
+        
+        local RainbowSpeed = EffectsSection:AddSlider("RainbowSpeed", {
+            Title = "Rainbow Speed",
+            Default = 1,
+            Min = 0.1,
+            Max = 5,
+            Rounding = 1
+        })
+        RainbowSpeed:OnChanged(function(Value)
+            Settings.RainbowSpeed = Value
+        end)
+        
+        local PerformanceSection = Tabs.Settings:AddSection("Performance")
+        
+        local RefreshRate = PerformanceSection:AddSlider("RefreshRate", {
+            Title = "Refresh Rate",
+            Default = 144,
+            Min = 1,
+            Max = 144,
+            Rounding = 0
+        })
+        RefreshRate:OnChanged(function(Value)
+            Settings.RefreshRate = 1/Value
+        end)
+    end
+
+    -- Config Tab
+    do
+        SaveManager:SetLibrary(Fluent)
+        InterfaceManager:SetLibrary(Fluent)
+        SaveManager:IgnoreThemeSettings()
+        SaveManager:SetIgnoreIndexes({})
+        InterfaceManager:SetFolder("BLOXHUBESP")
+        SaveManager:SetFolder("BloxHubESP/configs")
+        
+        InterfaceManager:BuildInterfaceSection(Tabs.Config)
+        SaveManager:BuildConfigSection(Tabs.Config)
+        
+        local UnloadSection = Tabs.Config:AddSection("Unload")
+        
+        local UnloadButton = UnloadSection:AddButton({
+            Title = "Unload ESP",
+            Description = "Completely remove the ESP",
+            Callback = function()
+                CleanupESP()
+                for _, connection in pairs(getconnections(RunService.RenderStepped)) do
+                    connection:Disable()
+                end
+                Window:Destroy()
+                Drawings = nil
+                Settings = nil
+                for k, v in pairs(getfenv(1)) do
+                    getfenv(1)[k] = nil
+                end
+            end
+        })
+    end
+
+    -- Rainbow effect
+    task.spawn(function()
+        while task.wait(0.1) do
+            Colors.Rainbow = Color3.fromHSV(tick() * Settings.RainbowSpeed % 1, 1, 1)
+        end
+    end)
+
+    -- Main ESP update loop
+    local lastUpdate = 0
+    RunService.RenderStepped:Connect(function()
+        -- Update FOV Circle
+        UpdateFOVCircle()
+        
+        -- Aimbot logic
+        if Settings.AimbotEnabled then
+            if Settings.AimbotMode == "Auto" then
+                aimbotActive = true
+            end
+            
+            if aimbotActive then
+                local target = GetClosestPlayerToMouse()
+                if target then
+                    AimAt(target)
+                end
+            end
+        end
+        
+        -- ESP update
+        if not Settings.Enabled then 
+            DisableESP()
+            return 
+        end
+        
+        local currentTime = tick()
+        if currentTime - lastUpdate >= Settings.RefreshRate then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer then
+                    if not Drawings.ESP[player] then
+                        CreateESP(player)
+                    end
+                    UpdateESP(player)
+                end
+            end
+            lastUpdate = currentTime
+        end
+    end)
+
+    Players.PlayerAdded:Connect(CreateESP)
+    Players.PlayerRemoving:Connect(RemoveESP)
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            CreateESP(player)
+        end
+    end
+
+    Window:SelectTab(1)
+
+    Fluent:Notify({
+        Title = "BLOXHUB ESP + Aimbot",
+        Content = "Loaded successfully! Right Click to aim (Hold mode)",
+        Duration = 5
+    })
+end
+
+-- =============================================================
+--                        UI FUNCTIONS
+-- =============================================================
+
+-- Function to add the "Cracked by" watermark to the bottom of the screen
+local function addWatermark()
+    local watermarkGui = Instance.new("ScreenGui", CoreGui)
+    watermarkGui.Name = "SouljaWitchWatermark"
+    watermarkGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    watermarkGui.DisplayOrder = 999 
+
+    local watermarkLabel = Instance.new("TextLabel", watermarkGui)
+    watermarkLabel.Name = "WatermarkLabel"
+    watermarkLabel.AnchorPoint = Vector2.new(0.5, 1)
+    watermarkLabel.Position = UDim2.new(0.5, 0, 1, -10)
+    watermarkLabel.Size = UDim2.new(1, -40, 0, 30)
+    watermarkLabel.BackgroundTransparency = 1
+    watermarkLabel.Font = Enum.Font.GothamSemibold
+    watermarkLabel.Text = "Cracked by SouljaWitchSrc"
+    watermarkLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    watermarkLabel.TextSize = 18
+    watermarkLabel.TextStrokeTransparency = 0.5
+end
+
+-- Function to create the loading screen UI
+local function createLoadingScreen()
+    local loadingScreenGui = Instance.new("ScreenGui", CoreGui)
+    loadingScreenGui.Name = "BloxHubLauncherLoading"
+    loadingScreenGui.ResetOnSpawn = false
+    loadingScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    local backgroundFrame = Instance.new("Frame", loadingScreenGui)
+    backgroundFrame.Size = UDim2.new(1, 0, 1, 0)
+    backgroundFrame.BackgroundColor3 = Color3.fromRGB(20, 25, 30)
+    backgroundFrame.BackgroundTransparency = 0.2
+    backgroundFrame.ZIndex = 30
+
+    local mainFrame = Instance.new("Frame", backgroundFrame)
+    mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    mainFrame.Size = UDim2.new(0, 340, 0, 100)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(31, 39, 48)
+    mainFrame.BorderSizePixel = 0
+    mainFrame.ZIndex = 32
+    Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 18)
+
+    local logoImage = Instance.new("ImageLabel", mainFrame)
+    logoImage.Image = logoAssetId
+    logoImage.Size = UDim2.new(0, 44, 0, 44)
+    logoImage.Position = UDim2.new(0, 16, 0.5, -32)
+    logoImage.BackgroundTransparency = 1
+    logoImage.ZIndex = 33
+
+    local titleLabel = Instance.new("TextLabel", mainFrame)
+    titleLabel.Size = UDim2.new(1, -80, 0, 24)
+    titleLabel.Position = UDim2.new(0, 72, 0, 10)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.Text = "Loading BloxHub"
+    titleLabel.TextColor3 = Color3.fromRGB(180, 255, 200)
+    titleLabel.TextSize = 18
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.ZIndex = 34
+    
+    local crackedLabel = Instance.new("TextLabel", mainFrame)
+    crackedLabel.Size = UDim2.new(1, -80, 0, 18)
+    crackedLabel.Position = UDim2.new(0, 72, 0, 32)
+    crackedLabel.BackgroundTransparency = 1
+    crackedLabel.Font = Enum.Font.Gotham
+    crackedLabel.Text = "Cracked by SouljaWitchSrc"
+    crackedLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    crackedLabel.TextSize = 13
+    crackedLabel.TextXAlignment = Enum.TextXAlignment.Left
+    crackedLabel.ZIndex = 34
+
+    local statusLabel = Instance.new("TextLabel", mainFrame)
+    statusLabel.Size = UDim2.new(1, -80, 0, 18)
+    statusLabel.Position = UDim2.new(0, 72, 0, 50)
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Font = Enum.Font.Gotham
+    statusLabel.Text = "Preparing..."
+    statusLabel.TextColor3 = Color3.fromRGB(220, 230, 220)
+    statusLabel.TextSize = 13
+    statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+    statusLabel.ZIndex = 34
+
+    local progressBarBackground = Instance.new("Frame", mainFrame)
+    progressBarBackground.Size = UDim2.new(1, -32, 0, 8)
+    progressBarBackground.Position = UDim2.new(0, 16, 1, -16)
+    progressBarBackground.BackgroundColor3 = Color3.fromRGB(44, 54, 65)
+    progressBarBackground.BorderSizePixel = 0
+    progressBarBackground.ZIndex = 34
+    Instance.new("UICorner", progressBarBackground).CornerRadius = UDim.new(0, 4)
+
+    local progressBar = Instance.new("Frame", progressBarBackground)
+    progressBar.Size = UDim2.new(0, 0, 1, 0)
+    progressBar.BackgroundColor3 = Color3.fromRGB(120, 210, 130)
+    progressBar.BorderSizePixel = 0
+    progressBar.ZIndex = 35
+    Instance.new("UICorner", progressBar).CornerRadius = UDim.new(0, 4)
+
+    local function updateProgress(progress, statusText)
+        local clampedProgress = math.clamp(progress, 0, 1)
+        progressBar:TweenSize(UDim2.new(clampedProgress, 0, 1, 0), "Out", "Quad", 0.25, true)
+        statusLabel.Text = statusText or ""
+    end
+
+    local function destroyUI()
+        loadingScreenGui:Destroy()
+    end
+
+    return updateProgress, destroyUI
+end
+
+-- =============================================================
+--                        MAIN LOADER
+-- =============================================================
+
+-- Function to load the embedded main script
+local function loadMainScript()
+    local updateProgress, destroyLoadingScreen = createLoadingScreen()
+
+    updateProgress(0.5, "Preparing script...")
+    
+    local loadSuccess, errorMessage = pcall(executeMainScript)
+
+    if loadSuccess then
+        updateProgress(1, "Done!")
+        addWatermark()
+    else
+        updateProgress(1, "Script Error!")
+        warn("BloxHub Script Error:", errorMessage)
+        StarterGui:SetCore("SendNotification", {
+            Title = "BloxHub",
+            Text = "Script Error: " .. tostring(errorMessage),
+            Duration = 5
+        })
+    end
+
+    wait(2)
+    destroyLoadingScreen()
+end
+
+-- Start the script loading process
+loadMainScript()

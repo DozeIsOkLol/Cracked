@@ -1,0 +1,307 @@
+-- Deobfuscated by SouljaWitchSrc
+
+--[[
+    Load Core Modules
+    These are the essential libraries for the script hub's functionality.
+]]
+local UiLibrary = loadstring(game:HttpGet("https://raw.githubusercontent.com/DozeIsOkLol/Cracked/refs/heads/main/BloxHub/BloxHub/Addon/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/DozeIsOkLol/Cracked/refs/heads/main/BloxHub/BloxHub/Addon/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/DozeIsOkLol/Cracked/refs/heads/main/BloxHub/BloxHub/Addon/InterfaceManager.lua"))()
+local ApiConfig = loadstring(game:HttpGet("https://api-bloxhub.vercel.app/autisme.lua"))()
+
+--[[
+    Script Database
+    A table containing all available scripts, organized by category.
+]]
+local ScriptDatabase = {
+    ["FPS Games"] = {
+        { name = "Arsenal ESP + Aimbot", description = "Advanced ESP and Aimbot for Arsenal", scriptName = "arsenal-esp+aimbot.txt", verified = true },
+        { name = "Entrenched WW1 Hack", description = "ESP and Aimbot for Entrenched", scriptName = "entrenched-ww1-esp+aimbot.txt", verified = true },
+        { name = "Rivals ESP + Aimbot", description = "Complete hack suite for Rivals", scriptName = "rivals-esp+aimbot.txt", verified = true }
+    },
+    ["Mystery Games"] = {
+        { name = "Murder Mystery 2 Hack", description = "ESP, Auto-collect coins, and more", scriptName = "murder-mystery 2.txt", verified = true }
+    },
+    ["Sports Games"] = {
+        { name = "Basketball Script", description = "Auto-shoot, speed boost, and more", scriptName = "basketball.lua", verified = true }
+    },
+    ["Fun Scripts"] = {
+        { name = "2Player Steal Brainrot", description = "Funny trolling script", scriptName = "2palayer_steal_brainrot.lua", verified = false },
+        { name = "Ink Game Script", description = "Advanced ink game utilities", scriptName = "ink-game.lua", verified = false }
+    },
+    ["Other Games"] = {
+        { name = "Project Delta", description = "Complete game enhancement", scriptName = "project_delta.lua", verified = false }
+    }
+}
+
+--[[
+    Script Execution Function
+    Handles fetching and running scripts from the database.
+]]
+local function executeScript(scriptName)
+    local success, errorMessage = pcall(function()
+        -- Construct the full URL using the API config
+        local scriptUrl = ApiConfig.bless .. ApiConfig.me .. ApiConfig.god .. scriptName .. ApiConfig.well .. ApiConfig.methodfatch
+        local scriptContent = game:HttpGet(scriptUrl)
+        loadstring(scriptContent)()
+    end)
+
+    if success then
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "BloxHub Free",
+            Text = "Script executed successfully!",
+            Duration = 3
+        })
+    else
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "BloxHub Free",
+            Text = "Failed to execute script: " .. tostring(errorMessage),
+            Duration = 5
+        })
+    end
+end
+
+--[[
+    Main Window and Tabs Setup
+    Creates the main user interface for the script hub.
+]]
+local mainWindow = UiLibrary:CreateWindow({
+    Title = "BloxHub Free " .. UiLibrary.Version,
+    SubTitle = "Advanced Script Hub",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
+
+local homeTab = mainWindow:AddTab({ Title = "Home", Icon = "home" })
+local scriptsTab = mainWindow:AddTab({ Title = "Scripts", Icon = "code" })
+local settingsTab = mainWindow:AddTab({ Title = "Settings", Icon = "settings" })
+local infoTab = mainWindow:AddTab({ Title = "Info", Icon = "info" })
+
+--[[
+    Player Information
+    Gathers and stores local player data for display.
+]]
+local playerInfo = (function()
+    local localPlayer = game:GetService("Players").LocalPlayer
+    return {
+        username = localPlayer.Name,
+        displayName = localPlayer.DisplayName,
+        userId = localPlayer.UserId,
+        accountAge = localPlayer.AccountAge,
+        isPremium = localPlayer.MembershipType == Enum.MembershipType.Premium
+    }
+end)()
+
+--[[
+    Populate Home Tab
+]]
+homeTab:AddParagraph({
+    Title = "Welcome to BloxHub Free!",
+    Content = string.format("Hello %s! Welcome to the most advanced free script hub for Roblox. Select scripts from the Scripts tab to enhance your gaming experience.", playerInfo.displayName)
+})
+
+homeTab:AddButton({
+    Title = "Execute Universal ESP",
+    Description = "Works on most games",
+    Callback = function()
+        executeScript("universal-esp.lua")
+    end
+})
+
+homeTab:AddButton({
+    Title = "Anti-AFK Script",
+    Description = "Prevents you from being kicked for inactivity",
+    Callback = function()
+        local virtualUser = game:GetService("VirtualUser")
+        game:GetService("Players").LocalPlayer.Idled:connect(function()
+            virtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+            wait(1)
+            virtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+        end)
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "BloxHub Free",
+            Text = "Anti-AFK enabled!",
+            Duration = 3
+        })
+    end
+})
+
+--[[
+    Populate Scripts Tab
+]]
+scriptsTab:AddParagraph({
+    Title = "Current Game: " .. game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name,
+    Content = "Browse and execute scripts by category. Verified scripts are tested and safe to use."
+})
+
+-- Loop through each category and its scripts to create buttons
+for categoryName, scripts in pairs(ScriptDatabase) do
+    local categorySection = scriptsTab:AddSection(categoryName)
+    for _, scriptData in ipairs(scripts) do
+        local buttonTitle = scriptData.name
+        if scriptData.verified then
+            buttonTitle = buttonTitle .. " ✔" -- Add a checkmark for verified scripts
+        end
+        categorySection:AddButton({
+            Title = buttonTitle,
+            Description = scriptData.description,
+            Callback = function()
+                executeScript(scriptData.scriptName)
+            end
+        })
+    end
+end
+
+-- Add a section for quick server actions
+local quickActionsSection = scriptsTab:AddSection("Quick Actions")
+quickActionsSection:AddButton({
+    Title = "Rejoin Server",
+    Description = "Quickly rejoin the current server",
+    Callback = function()
+        game:GetService("TeleportService"):Teleport(game.PlaceId, game:GetService("Players").LocalPlayer)
+    end
+})
+
+quickActionsSection:AddButton({
+    Title = "Server Hop",
+    Description = "Join a different server",
+    Callback = function()
+        local HttpService = game:GetService("HttpService")
+        local TeleportService = game:GetService("TeleportService")
+        local placeId = game.PlaceId
+        local serversApiUrl = "https://games.roblox.com/v1/games/" .. placeId .. "/servers/Public?sortOrder=Asc&limit=100"
+        
+        local success, response = pcall(function()
+            return HttpService:JSONDecode(game:HttpGet(serversApiUrl))
+        end)
+        
+        if success and response.data then
+            for _, serverInfo in pairs(response.data) do
+                if serverInfo.playing < serverInfo.maxPlayers and serverInfo.id ~= game.JobId then
+                    TeleportService:TeleportToPlaceInstance(placeId, serverInfo.id, game:GetService("Players").LocalPlayer)
+                    break
+                end
+            end
+        end
+    end
+})
+
+--[[
+    Populate Settings Tab
+]]
+local interfaceSettingsSection = settingsTab:AddSection("Interface Settings")
+local isAutoExecuteEnabled = false
+interfaceSettingsSection:AddToggle("AutoExecute", {
+    Title = "Auto-Execute on Join",
+    Description = "Automatically execute saved scripts when joining games",
+    Default = false,
+    Callback = function(value)
+        isAutoExecuteEnabled = value
+    end
+})
+
+local areNotificationsEnabled = true
+interfaceSettingsSection:AddToggle("Notifications", {
+    Title = "Show Notifications",
+    Description = "Display execution status notifications",
+    Default = true,
+    Callback = function(value)
+        areNotificationsEnabled = value
+    end
+})
+
+interfaceSettingsSection:AddButton({
+    Title = "Reset Settings",
+    Description = "Reset all settings to default",
+    Callback = function()
+        SaveManager:Delete()
+        InterfaceManager:Reset()
+    end
+})
+
+--[[
+    Populate Info Tab
+]]
+infoTab:AddParagraph({
+    Title = "About BloxHub Free",
+    Content = "BloxHub Free is a comprehensive script hub designed to enhance your Roblox gaming experience. Our scripts are carefully curated and tested for safety and functionality."
+})
+
+infoTab:AddParagraph({
+    Title = "Player Information",
+    Content = string.format("\r\nUsername: %s\r\nDisplay Name: %s\r\nUser ID: %s\r\nAccount Age: %d days\r\nPremium: %s\r\n    ", playerInfo.username, playerInfo.displayName, tostring(playerInfo.userId), playerInfo.accountAge, playerInfo.isPremium and "Yes" or "No")
+})
+
+infoTab:AddSection("Statistics"):AddParagraph({
+    Title = "Hub Statistics",
+    Content = string.format("\r\nTotal Scripts: %d\r\nVerified Scripts: %d\r\nCategories: %d\r\n    ", 25, 15, #ScriptDatabase)
+})
+
+infoTab:AddButton({
+    Title = "Join Discord Server",
+    Description = "Get support and updates",
+    Callback = function()
+        setclipboard("https://discord.gg/bloxhub")
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "BloxHub Free",
+            Text = "Discord link copied to clipboard!",
+            Duration = 3
+        })
+    end
+})
+
+infoTab:AddButton({
+    Title = "Check for Updates",
+    Description = "Manually check for hub updates",
+    Callback = function()
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "BloxHub Free",
+            Text = "You are using the latest version!",
+            Duration = 3
+        })
+    end
+})
+
+--[[
+    Final Setup and Initialization
+]]
+-- Configure Save and Interface Managers
+SaveManager:SetLibrary(UiLibrary)
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({})
+SaveManager:SetFolder("BloxHub/configs")
+SaveManager:BuildConfigSection(settingsTab)
+
+InterfaceManager:SetLibrary(UiLibrary)
+InterfaceManager:SetFolder("BloxHub")
+InterfaceManager:BuildInterfaceSection(settingsTab)
+
+-- Load any auto-load configurations
+SaveManager:LoadAutoloadConfig()
+
+-- Initial notification to the user
+game.StarterGui:SetCore("SendNotification", {
+    Title = "BloxHub Free",
+    Text = "Script hub loaded successfully! Press Left Ctrl to minimize.",
+    Duration = 5
+})
+
+-- Periodic background task (e.g., checking for updates)
+spawn(function()
+    while true do
+        wait(1800) -- Wait for 30 minutes
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "BloxHub Free",
+            Text = "Checking for updates...",
+            Duration = 2
+        })
+    end
+end)
+
+-- Final print messages to the console
+print("BloxHub Free v1.1 loaded successfully!")
+print("Created by BloxHub Team")
+print("Discord: discord.com/invite/q6BSdFCU4w")

@@ -1,0 +1,582 @@
+--[[
+    Use keys "FreeKey" or "PremKey"
+]]
+
+--[[
+    Services and Core Variables
+]]
+local HttpService = game:GetService("HttpService")
+local PlayersService = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+local CoreGui = game:GetService("CoreGui")
+local localPlayer = PlayersService.LocalPlayer
+
+--[[
+    API Endpoints and Configuration
+]]
+local FREE_KEY_API_URL = "http://api-bloxhub.vercel.app/api/api_login_roblox.js"
+local PREMIUM_KEY_VERIFY_API_URL = "https://bloxhub-dev.vercel.app/api/roblox/verify"
+local apiConfig = loadstring(game:HttpGet("https://bloxhub-six.vercel.app/autisme.lua"))()
+local GET_KEY_BROWSER_URL = "https://bloxhub-dev.vercel.app/get-free-key"
+local BLOXHUB_LOGO_ASSET_ID = "rbxassetid://71512996518950"
+local MAIN_SCRIPT_URL = apiConfig.bless .. apiConfig.me .. apiConfig.god .. "on-dev-script(903670).lua" .. apiConfig.well .. apiConfig.methodfatch
+
+--[[
+    Local File and Key Settings
+]]
+local KEY_FILENAME = "bloxhub.key"
+local KEY_TIMESTAMP_FILENAME = "bloxhub_time.txt"
+local KEY_EXPIRATION_SECONDS = 3600 -- 1 hour
+
+--[[
+    UI Component: Progress Bar
+    Creates a detailed progress bar with percentage and status text.
+]]
+local function createProgressBar(parent)
+    local progressBarBackground = Instance.new("Frame")
+    progressBarBackground.Name = "ProgressBarBG"
+    progressBarBackground.Size = UDim2.new(1, -80, 0, 8)
+    progressBarBackground.Position = UDim2.new(0, 40, 1, -30)
+    progressBarBackground.BackgroundColor3 = Color3.fromRGB(44, 54, 65)
+    progressBarBackground.BorderSizePixel = 0
+    progressBarBackground.ZIndex = 10
+    progressBarBackground.Parent = parent
+    Instance.new("UICorner", progressBarBackground).CornerRadius = UDim.new(0, 4)
+
+    local progressBarFill = Instance.new("Frame", progressBarBackground)
+    progressBarFill.Name = "ProgressBar"
+    progressBarFill.Size = UDim2.new(0, 0, 1, 0)
+    progressBarFill.BackgroundColor3 = Color3.fromRGB(120, 210, 130)
+    progressBarFill.BorderSizePixel = 0
+    progressBarFill.ZIndex = 11
+    Instance.new("UICorner", progressBarFill).CornerRadius = UDim.new(0, 4)
+
+    local percentageLabel = Instance.new("TextLabel", progressBarBackground)
+    percentageLabel.AnchorPoint = Vector2.new(1, 1)
+    percentageLabel.Position = UDim2.new(1, 0, 0, -10)
+    percentageLabel.Size = UDim2.new(0, 50, 0, 14)
+    percentageLabel.BackgroundTransparency = 1
+    percentageLabel.Font = Enum.Font.GothamSemibold
+    percentageLabel.Text = "0%"
+    percentageLabel.TextColor3 = Color3.fromRGB(160, 255, 180)
+    percentageLabel.TextSize = 12
+    percentageLabel.ZIndex = 12
+
+    local statusLabel = Instance.new("TextLabel", progressBarBackground)
+    statusLabel.AnchorPoint = Vector2.new(0, 1)
+    statusLabel.Position = UDim2.new(0, 0, 0, -10)
+    statusLabel.Size = UDim2.new(1, -60, 0, 14)
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Font = Enum.Font.Gotham
+    statusLabel.Text = ""
+    statusLabel.TextColor3 = Color3.fromRGB(220, 230, 220)
+    statusLabel.TextSize = 12
+    statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+    statusLabel.ZIndex = 12
+
+    local function updateProgress(progress, statusText)
+        local clampedProgress = math.clamp(progress, 0, 1)
+        progressBarFill:TweenSize(UDim2.new(clampedProgress, 0, 1, 0), "Out", "Quad", 0.25, true)
+        percentageLabel.Text = tostring(math.floor(clampedProgress * 100)) .. "%"
+        statusLabel.Text = statusText or ""
+    end
+
+    local function destroy()
+        progressBarBackground:Destroy()
+    end
+
+    return updateProgress, destroy
+end
+
+--[[
+    UI Component: Loading Screen
+    Creates the initial loading screen shown when the script starts.
+]]
+local function createLoadingScreen()
+    local loadingGui = Instance.new("ScreenGui", CoreGui)
+    loadingGui.Name = "BloxHubLauncherLoading"
+    loadingGui.ResetOnSpawn = false
+    loadingGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    local backgroundDim = Instance.new("Frame", loadingGui)
+    backgroundDim.Size = UDim2.new(1, 0, 1, 0)
+    backgroundDim.BackgroundTransparency = 0.2
+    backgroundDim.BackgroundColor3 = Color3.fromRGB(20, 25, 30)
+    backgroundDim.ZIndex = 30
+
+    local loadingFrame = Instance.new("Frame", backgroundDim)
+    loadingFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    loadingFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    loadingFrame.Size = UDim2.new(0, 340, 0, 64)
+    loadingFrame.BackgroundColor3 = Color3.fromRGB(31, 39, 48)
+    loadingFrame.BorderSizePixel = 0
+    loadingFrame.ZIndex = 32
+    Instance.new("UICorner", loadingFrame).CornerRadius = UDim.new(0, 18)
+
+    local logoImage = Instance.new("ImageLabel", loadingFrame)
+    logoImage.Image = BLOXHUB_LOGO_ASSET_ID
+    logoImage.Size = UDim2.new(0, 44, 0, 44)
+    logoImage.Position = UDim2.new(0, 16, 0.5, -22)
+    logoImage.BackgroundTransparency = 1
+    logoImage.ZIndex = 33
+
+    local titleLabel = Instance.new("TextLabel", loadingFrame)
+    titleLabel.Size = UDim2.new(1, -80, 0, 24)
+    titleLabel.Position = UDim2.new(0, 72, 0, 10)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.Text = "Loading BloxHub"
+    titleLabel.TextColor3 = Color3.fromRGB(180, 255, 200)
+    titleLabel.TextSize = 18
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.ZIndex = 34
+
+    local statusLabel = Instance.new("TextLabel", loadingFrame)
+    statusLabel.Size = UDim2.new(1, -80, 0, 18)
+    statusLabel.Position = UDim2.new(0, 72, 0, 32)
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Font = Enum.Font.Gotham
+    statusLabel.Text = "Preparing..."
+    statusLabel.TextColor3 = Color3.fromRGB(220, 230, 220)
+    statusLabel.TextSize = 13
+    statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+    statusLabel.ZIndex = 34
+
+    local progressBarBackground = Instance.new("Frame", loadingFrame)
+    progressBarBackground.Size = UDim2.new(1, -32, 0, 8)
+    progressBarBackground.Position = UDim2.new(0, 16, 1, -16)
+    progressBarBackground.BackgroundColor3 = Color3.fromRGB(44, 54, 65)
+    progressBarBackground.BorderSizePixel = 0
+    progressBarBackground.ZIndex = 34
+    Instance.new("UICorner", progressBarBackground).CornerRadius = UDim.new(0, 4)
+
+    local progressBarFill = Instance.new("Frame", progressBarBackground)
+    progressBarFill.Size = UDim2.new(0, 0, 1, 0)
+    progressBarFill.BackgroundColor3 = Color3.fromRGB(120, 210, 130)
+    progressBarFill.BorderSizePixel = 0
+    progressBarFill.ZIndex = 35
+    Instance.new("UICorner", progressBarFill).CornerRadius = UDim.new(0, 4)
+
+    local function updateProgress(progress, statusText)
+        local clampedProgress = math.clamp(progress, 0, 1)
+        progressBarFill:TweenSize(UDim2.new(clampedProgress, 0, 1, 0), "Out", "Quad", 0.25, true)
+        statusLabel.Text = statusText or ""
+    end
+
+    local function destroy()
+        loadingGui:Destroy()
+    end
+
+    return updateProgress, destroy
+end
+
+--[[
+    Key Handling Functions
+]]
+function fetchFreeKeyFromServer(updateProgress)
+    if updateProgress then updateProgress(0.1, "Fetching key from server...") end
+    local success, response = pcall(function() return game:HttpGet(FREE_KEY_API_URL) end)
+    if success then
+        if updateProgress then updateProgress(0.35, "Key fetched successfully.") end
+        return string.match(response, "%S+")
+    else
+        warn("Failed to fetch key!")
+        if updateProgress then updateProgress(0, "Failed to fetch key!") end
+        return nil
+    end
+end
+
+function getLocalKeyIfValid(updateProgress)
+    if updateProgress then updateProgress(0.08, "Checking local key...") end
+    if isfile and isfile(KEY_FILENAME) and isfile(KEY_TIMESTAMP_FILENAME) then
+        local lastSavedTime = tonumber(readfile(KEY_TIMESTAMP_FILENAME))
+        if lastSavedTime and (os.time() - lastSavedTime < KEY_EXPIRATION_SECONDS) then
+            if updateProgress then updateProgress(0.2, "Valid local key found.") end
+            return readfile(KEY_FILENAME)
+        end
+    end
+    if updateProgress then updateProgress(0.08, "No valid local key found.") end
+    return nil
+end
+
+function saveKeyLocally(key, updateProgress)
+    if writefile then
+        writefile(KEY_FILENAME, key)
+        writefile(KEY_TIMESTAMP_FILENAME, tostring(os.time()))
+        if updateProgress then updateProgress(0.9, "Saving key...") end
+    end
+end
+
+--[[
+    UI Component: Key System Window
+    Creates the main key input window.
+]]
+local function createKeySystemUI(onSuccessCallback)
+    local keySystemGui = Instance.new("ScreenGui", CoreGui)
+    keySystemGui.Name = "BloxHubKeySystemRFStyle"
+    keySystemGui.ResetOnSpawn = false
+    keySystemGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    local mainFrame = Instance.new("Frame", keySystemGui)
+    mainFrame.Size = UDim2.new(0, 750, 0, 450)
+    mainFrame.Position = UDim2.new(0.5, -375, 0.5, -225)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(35, 45, 50)
+    mainFrame.BorderSizePixel = 1
+    mainFrame.BorderColor3 = Color3.fromRGB(20, 25, 30)
+    mainFrame.Active = true
+    mainFrame.Draggable = true
+    mainFrame.ClipsDescendants = true
+
+    local headerBar = Instance.new("Frame", mainFrame)
+    headerBar.Size = UDim2.new(1, 0, 0, 40)
+    headerBar.BackgroundColor3 = Color3.fromRGB(25, 30, 35)
+    headerBar.BorderSizePixel = 0
+    headerBar.ZIndex = 2
+
+    local titleLabel = Instance.new("TextLabel", headerBar)
+    titleLabel.Size = UDim2.new(0, 200, 1, 0)
+    titleLabel.Position = UDim2.new(0, 15, 0, 0)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Font = Enum.Font.GothamSemibold
+    titleLabel.Text = "BLOXHUB"
+    titleLabel.TextColor3 = Color3.fromRGB(210, 215, 220)
+    titleLabel.TextSize = 20
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.TextYAlignment = Enum.TextYAlignment.Center
+
+    local closeButton = Instance.new("TextButton", headerBar)
+    closeButton.Size = UDim2.new(0, 30, 0, 30)
+    closeButton.Position = UDim2.new(1, -35, 0.5, -15)
+    closeButton.BackgroundColor3 = Color3.fromRGB(25, 30, 35)
+    closeButton.BorderSizePixel = 0
+    closeButton.Font = Enum.Font.SourceSansBold
+    closeButton.Text = "✕"
+    closeButton.TextColor3 = Color3.fromRGB(150, 155, 160)
+    closeButton.TextSize = 22
+    closeButton.ZIndex = 3
+
+    local minimizeButton = Instance.new("TextButton", headerBar)
+    minimizeButton.Size = UDim2.new(0, 30, 0, 30)
+    minimizeButton.Position = UDim2.new(1, -70, 0.5, -15)
+    minimizeButton.BackgroundColor3 = Color3.fromRGB(25, 30, 35)
+    minimizeButton.BorderSizePixel = 0
+    minimizeButton.Font = Enum.Font.SourceSansBold
+    minimizeButton.Text = "—"
+    minimizeButton.TextColor3 = Color3.fromRGB(150, 155, 160)
+    minimizeButton.TextSize = 22
+    minimizeButton.ZIndex = 3
+    
+    local function addHeaderButtonHover(button, hoverColor, defaultColor)
+        button.MouseEnter:Connect(function() button.TextColor3 = hoverColor end)
+        button.MouseLeave:Connect(function() button.TextColor3 = defaultColor end)
+    end
+    addHeaderButtonHover(closeButton, Color3.fromRGB(231, 76, 60), Color3.fromRGB(150, 155, 160))
+    addHeaderButtonHover(minimizeButton, Color3.fromRGB(200, 200, 200), Color3.fromRGB(150, 155, 160))
+
+    local backgroundImage = Instance.new("ImageLabel", mainFrame)
+    backgroundImage.Size = UDim2.new(0.55, 0, 1, -headerBar.Size.Y.Offset)
+    backgroundImage.Position = UDim2.new(0, 0, 0, headerBar.Size.Y.Offset)
+    backgroundImage.BackgroundColor3 = Color3.fromRGB(20, 25, 30)
+    backgroundImage.Image = BLOXHUB_LOGO_ASSET_ID
+    backgroundImage.ScaleType = Enum.ScaleType.Crop
+    backgroundImage.BorderSizePixel = 0
+    backgroundImage.ZIndex = 1
+
+    local inputPanel = Instance.new("Frame", mainFrame)
+    inputPanel.Size = UDim2.new(0.45, 0, 1, -headerBar.Size.Y.Offset)
+    inputPanel.Position = UDim2.new(0.55, 0, 0, headerBar.Size.Y.Offset)
+    inputPanel.BackgroundColor3 = Color3.fromRGB(35, 45, 50)
+    inputPanel.BorderSizePixel = 0
+    inputPanel.ZIndex = 1
+
+    local panelTitle = Instance.new("TextLabel", inputPanel)
+    panelTitle.Size = UDim2.new(1, -80, 0, 50)
+    panelTitle.Position = UDim2.new(0, 40, 0, 40)
+    panelTitle.BackgroundTransparency = 1
+    panelTitle.Font = Enum.Font.GothamSemibold
+    panelTitle.Text = "Key System"
+    panelTitle.TextColor3 = Color3.fromRGB(220, 225, 230)
+    panelTitle.TextSize = 28
+    panelTitle.TextXAlignment = Enum.TextXAlignment.Left
+    panelTitle.ZIndex = 2
+
+    local hwidStatusLabel = Instance.new("TextLabel", inputPanel)
+    hwidStatusLabel.Size = UDim2.new(1, -80, 0, 20)
+    hwidStatusLabel.Position = UDim2.new(0, 40, 0, 70)
+    hwidStatusLabel.BackgroundTransparency = 1
+    hwidStatusLabel.Font = Enum.Font.GothamSemibold
+    hwidStatusLabel.Text = ""
+    hwidStatusLabel.TextColor3 = Color3.fromRGB(255, 185, 80)
+    hwidStatusLabel.TextSize = 14
+    hwidStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+    hwidStatusLabel.ZIndex = 2
+
+    local keyLabel = Instance.new("TextLabel", inputPanel)
+    keyLabel.Size = UDim2.new(1, -80, 0, 20)
+    keyLabel.Position = UDim2.new(0, 40, 0, 90)
+    keyLabel.BackgroundTransparency = 1
+    keyLabel.Font = Enum.Font.Gotham
+    keyLabel.Text = "Key"
+    keyLabel.TextColor3 = Color3.fromRGB(160, 170, 175)
+    keyLabel.TextSize = 14
+    keyLabel.TextXAlignment = Enum.TextXAlignment.Left
+    keyLabel.ZIndex = 2
+
+    local keyInputBox = Instance.new("TextBox", inputPanel)
+    keyInputBox.Size = UDim2.new(1, -80, 0, 40)
+    keyInputBox.Position = UDim2.new(0, 40, 0, 115)
+    keyInputBox.BackgroundColor3 = Color3.fromRGB(28, 38, 43)
+    keyInputBox.BorderSizePixel = 1
+    keyInputBox.BorderColor3 = Color3.fromRGB(50, 60, 65)
+    keyInputBox.Font = Enum.Font.Gotham
+    keyInputBox.PlaceholderText = "Enter your key"
+    keyInputBox.PlaceholderColor3 = Color3.fromRGB(100, 110, 115)
+    keyInputBox.Text = ""
+    keyInputBox.TextColor3 = Color3.fromRGB(210, 215, 220)
+    keyInputBox.TextSize = 16
+    keyInputBox.ClearTextOnFocus = false
+    keyInputBox.ZIndex = 2
+    Instance.new("UIPadding", keyInputBox).PaddingLeft = UDim.new(0, 10)
+
+    local submitButton = Instance.new("TextButton", inputPanel)
+    submitButton.Size = UDim2.new(1, -80, 0, 40)
+    submitButton.Position = UDim2.new(0, 40, 0, 165)
+    submitButton.BackgroundColor3 = Color3.fromRGB(40, 50, 55)
+    submitButton.BorderSizePixel = 1
+    submitButton.BorderColor3 = Color3.fromRGB(60, 70, 75)
+    submitButton.Font = Enum.Font.GothamSemibold
+    submitButton.Text = "SUBMIT KEY"
+    submitButton.TextColor3 = Color3.fromRGB(220, 225, 230)
+    submitButton.TextSize = 16
+    submitButton.ZIndex = 2
+
+    local getKeyBrowserButton = Instance.new("TextButton", inputPanel)
+    getKeyBrowserButton.Size = UDim2.new(0.5, -45, 0, 35)
+    getKeyBrowserButton.Position = UDim2.new(0, 40, 0, 215)
+    getKeyBrowserButton.BackgroundColor3 = Color3.fromRGB(50, 60, 65)
+    getKeyBrowserButton.BorderSizePixel = 1
+    getKeyBrowserButton.BorderColor3 = Color3.fromRGB(70, 80, 85)
+    getKeyBrowserButton.Font = Enum.Font.Gotham
+    getKeyBrowserButton.Text = "Get Key (Browser)"
+    getKeyBrowserButton.TextColor3 = Color3.fromRGB(180, 190, 195)
+    getKeyBrowserButton.TextSize = 13
+    getKeyBrowserButton.ZIndex = 2
+
+    local copyLinkButton = Instance.new("TextButton", inputPanel)
+    copyLinkButton.Size = UDim2.new(0.5, -45, 0, 35)
+    copyLinkButton.Position = UDim2.new(0.5, 5, 0, 215)
+    copyLinkButton.BackgroundColor3 = Color3.fromRGB(50, 60, 65)
+    copyLinkButton.BorderSizePixel = 1
+    copyLinkButton.BorderColor3 = Color3.fromRGB(70, 80, 85)
+    copyLinkButton.Font = Enum.Font.Gotham
+    copyLinkButton.Text = "Copy Link"
+    copyLinkButton.TextColor3 = Color3.fromRGB(180, 190, 195)
+    copyLinkButton.TextSize = 13
+    copyLinkButton.ZIndex = 2
+
+    local updateProgressBar, destroyProgressBar = createProgressBar(inputPanel)
+
+    local function addButtonHoverEffect(button)
+        local originalColor = button.BackgroundColor3
+        local hoverColor = originalColor:Lerp(Color3.new(1, 1, 1), 0.1)
+        button.MouseEnter:Connect(function() button.BackgroundColor3 = hoverColor end)
+        button.MouseLeave:Connect(function() button.BackgroundColor3 = originalColor end)
+    end
+    addButtonHoverEffect(submitButton)
+    addButtonHoverEffect(getKeyBrowserButton)
+    addButtonHoverEffect(copyLinkButton)
+    
+    -- Button actions
+    minimizeButton.MouseButton1Click:Connect(function() mainFrame.Visible = not mainFrame.Visible end)
+    closeButton.MouseButton1Click:Connect(function() keySystemGui:Destroy() end)
+
+    getKeyBrowserButton.MouseButton1Click:Connect(function()
+        StarterGui:SetCore("SendNotification", { Title = "BloxHub", Text = "Opening key page in browser...", Duration = 5 })
+        if syn and syn.request then pcall(function() syn.request({ Url = GET_KEY_BROWSER_URL, Method = "GET" }) end)
+        elseif KRNL_LOADED and KRNL_LOADED.OpenURL then pcall(function() KRNL_LOADED:OpenURL(GET_KEY_BROWSER_URL) end)
+        elseif PROXO_LOADED and PROXO_LOADED.OpenURL then pcall(function() PROXO_LOADED:OpenURL(GET_KEY_BROWSER_URL) end)
+        elseif FLUXUS_LOADED and FLUXUS_LOADED.OpenURL then pcall(function() FLUXUS_LOADED:OpenURL(GET_KEY_BROWSER_URL) end)
+        elseif request then pcall(function() request({ Url = GET_KEY_BROWSER_URL, Method = "GET" }) end)
+        elseif identifyexecutor then
+            local execName, _ = identifyexecutor()
+            if string.find(string.lower(execName or ""), "synapse") then
+                pcall(function() syn.request({ Url = GET_KEY_BROWSER_URL, Method = "GET" }) end)
+            else
+                setclipboard(GET_KEY_BROWSER_URL)
+                StarterGui:SetCore("SendNotification", { Title = "BloxHub", Text = "Browser open not supported. Link copied!", Duration = 5 })
+            end
+        else
+            setclipboard(GET_KEY_BROWSER_URL)
+            StarterGui:SetCore("SendNotification", { Title = "BloxHub", Text = "Browser open not supported. Link copied to clipboard!", Duration = 5 })
+        end
+    end)
+    
+    copyLinkButton.MouseButton1Click:Connect(function()
+        setclipboard(GET_KEY_BROWSER_URL)
+        StarterGui:SetCore("SendNotification", { Title = "BloxHub", Text = "Link copied to clipboard!", Duration = 5 })
+    end)
+
+    submitButton.MouseButton1Click:Connect(function()
+        updateProgressBar(0.1, "Processing key...")
+        local enteredKey = keyInputBox.Text
+
+        -- <<< KEY BYPASS MODIFICATION START >>>
+        if enteredKey == "FreeKey" then
+            StarterGui:SetCore("SendNotification", { Title = "BloxHub", Text = "Free Key Bypass Activated! Loading...", Duration = 1 })
+            updateProgressBar(1, "Bypass successful!")
+            wait(0.5)
+            keySystemGui:Destroy()
+            if onSuccessCallback then onSuccessCallback() end
+            return -- Exit the function early
+        end
+
+        if enteredKey == "PremKey" then
+            StarterGui:SetCore("SendNotification", { Title = "BloxHub", Text = "Premium Key Bypass Activated! Loading...", Duration = 1 })
+            updateProgressBar(1, "Premium bypass successful!")
+            wait(0.5)
+            keySystemGui:Destroy()
+            if onSuccessCallback then onSuccessCallback() end
+            return -- Exit the function early
+        end
+        -- <<< KEY BYPASS MODIFICATION END >>>
+
+        if string.gsub(enteredKey, "%s", "") == "" then
+            StarterGui:SetCore("SendNotification", { Title = "BloxHub", Text = "Please enter a key!", Duration = 3 })
+            updateProgressBar(0, "Key is empty.")
+            return
+        end
+        
+        updateProgressBar(0.3, "Fetching server key...")
+        local serverKey = fetchFreeKeyFromServer(updateProgressBar)
+        
+        if not serverKey then
+            StarterGui:SetCore("SendNotification", { Title = "BloxHub", Text = "Error fetching key. Try again.", Duration = 5 })
+            updateProgressBar(0, "Failed to fetch key.")
+            return
+        end
+
+        updateProgressBar(0.7, "Checking key validity...")
+        if enteredKey == serverKey then
+            StarterGui:SetCore("SendNotification", { Title = "BloxHub", Text = "Key Verified! Loading...", Duration = 1 })
+            saveKeyLocally(enteredKey, updateProgressBar)
+            updateProgressBar(1, "Key is valid! Continuing...")
+            wait(0.5)
+            keySystemGui:Destroy()
+            if onSuccessCallback then onSuccessCallback() end
+        else
+            updateProgressBar(0.75, "Checking premium key...")
+            local verifyUrl = PREMIUM_KEY_VERIFY_API_URL .. "?key=" .. HttpService:UrlEncode(enteredKey)
+            local httpResponse = nil
+            local isPremiumKeyValid = false
+            pcall(function()
+                if syn and syn.request then httpResponse = syn.request({Url = verifyUrl, Method = "GET"})
+                elseif http_request then httpResponse = http_request({Url = verifyUrl, Method = "GET"})
+                elseif request then httpResponse = request({Url = verifyUrl, Method = "GET"})
+                elseif fluxus and fluxus.request then httpResponse = fluxus.request({Url = verifyUrl, Method = "GET"}) end
+            end)
+            if httpResponse and httpResponse.StatusCode == 200 then
+                isPremiumKeyValid = HttpService:JSONDecode(httpResponse.Body).valid and true or false
+            end
+            if isPremiumKeyValid then
+                StarterGui:SetCore("SendNotification", { Title = "BloxHub", Text = "Premium Key Verified! Loading...", Duration = 1 })
+                saveKeyLocally(enteredKey, updateProgressBar)
+                updateProgressBar(1, "Premium key valid! Continuing...")
+                wait(0.5)
+                keySystemGui:Destroy()
+                if onSuccessCallback then onSuccessCallback() end
+            else
+                StarterGui:SetCore("SendNotification", { Title = "BloxHub", Text = "Invalid Key! Please try again.", Duration = 3 })
+                updateProgressBar(0, "Wrong key.")
+                keyInputBox.Text = ""
+            end
+        end
+    end)
+
+    return keySystemGui, hwidStatusLabel, keyInputBox, updateProgressBar, destroyProgressBar
+end
+
+--[[
+    Main Script Loading Function
+    Handles fetching and executing the main BloxHub script.
+]]
+local function loadMainScript()
+    local updateProgress, destroyScreen = createLoadingScreen()
+    updateProgress(0.15, "Fetching script...")
+
+    local success, scriptContent = pcall(function() return game:HttpGet(MAIN_SCRIPT_URL) end)
+    if success and type(scriptContent) == "string" and #scriptContent > 0 then
+        updateProgress(0.8, "Executing script...")
+        local execSuccess, errorMessage = pcall(function() loadstring(scriptContent)() end)
+        if execSuccess then
+            updateProgress(1, "Done!")
+        else
+            updateProgress(1, "Script Error!")
+            StarterGui:SetCore("SendNotification", { Title = "BloxHub", Text = "Script Error: " .. tostring(errorMessage), Duration = 5 })
+        end
+    else
+        updateProgress(1, "Failed to fetch script!")
+        StarterGui:SetCore("SendNotification", { Title = "BloxHub", Text = "Failed to fetch main script!", Duration = 5 })
+    end
+    wait(1)
+    destroyScreen()
+end
+
+--[[
+    Initialization
+    Starts the key verification process.
+]]
+local function initialize()
+    local keySystemGui, hwidStatusLabel, keyInputBox, updateProgressBar, _ = createKeySystemUI(loadMainScript)
+    updateProgressBar(0.05, "Initializing key system...")
+
+    local localKey = getLocalKeyIfValid(updateProgressBar)
+    if localKey then
+        updateProgressBar(0.5, "Auto login, checking HWID...")
+        hwidStatusLabel.Text = "Checking your key HWID..."
+        keyInputBox.Text = localKey
+        
+        task.spawn(function()
+            wait(1)
+            updateProgressBar(0.7, "Verifying key with server...")
+            if localKey ~= fetchFreeKeyFromServer(updateProgressBar) then
+                local verifyUrl = PREMIUM_KEY_VERIFY_API_URL .. "?key=" .. HttpService:UrlEncode(localKey)
+                local httpResponse = nil
+                local isPremiumKeyValid = false
+                pcall(function()
+                     if syn and syn.request then httpResponse = syn.request({Url = verifyUrl, Method = "GET"})
+                     elseif http_request then httpResponse = http_request({Url = verifyUrl, Method = "GET"})
+                     elseif request then httpResponse = request({Url = verifyUrl, Method = "GET"})
+                     elseif fluxus and fluxus.request then httpResponse = fluxus.request({Url = verifyUrl, Method = "GET"}) end
+                end)
+                if httpResponse and httpResponse.StatusCode == 200 then
+                    isPremiumKeyValid = HttpService:JSONDecode(httpResponse.Body).valid and true or false
+                end
+                
+                if isPremiumKeyValid then
+                    StarterGui:SetCore("SendNotification", { Title = "BloxHub", Text = "Auto-Login Premium Success! Loading...", Duration = 1 })
+                    saveKeyLocally(localKey, updateProgressBar)
+                    updateProgressBar(1, "Auto login premium success!")
+                    wait(0.5)
+                    keySystemGui:Destroy()
+                    loadMainScript()
+                else
+                    hwidStatusLabel.Text = ""
+                    keyInputBox.Text = ""
+                    updateProgressBar(0, "Auto login key is not valid!")
+                end
+            else
+                StarterGui:SetCore("SendNotification", { Title = "BloxHub", Text = "Auto-Login Success! Loading...", Duration = 1 })
+                saveKeyLocally(localKey, updateProgressBar)
+                updateProgressBar(1, "Auto login success!")
+                wait(0.5)
+                keySystemGui:Destroy()
+                loadMainScript()
+            end
+        end)
+    else
+        updateProgressBar(0.2, "No valid local key, please input your key.")
+    end
+end
+
+initialize()

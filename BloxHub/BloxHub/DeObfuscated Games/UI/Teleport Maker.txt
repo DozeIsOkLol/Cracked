@@ -1,0 +1,464 @@
+-- Deobfuscated by SouljaWitchSrc
+--// Waypoint Maker Tool with Save/Load Profiles
+
+local player = game.Players.LocalPlayer
+local camera = workspace.CurrentCamera
+local mouse = player:GetMouse()
+local waypoints = {}
+local selectorEnabled = false
+local currentHighlight = nil
+local currentProfile = "default"
+
+-- GUI Setup
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+screenGui.Name = "WaypointMaker"
+screenGui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame", screenGui)
+frame.Size = UDim2.new(0, 350, 0, 400)
+frame.Position = UDim2.new(0.5, -175, 0.5, -200)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BackgroundTransparency = 0.2
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 30)
+title.Text = "Waypoint Maker"
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 22
+title.BackgroundTransparency = 1
+title.TextColor3 = Color3.new(1, 1, 1)
+
+local inputBox = Instance.new("TextBox", frame)
+inputBox.Size = UDim2.new(1, -20, 0, 30)
+inputBox.Position = UDim2.new(0, 10, 0, 40)
+inputBox.PlaceholderText = "Enter waypoint name..."
+inputBox.Font = Enum.Font.SourceSans
+inputBox.TextSize = 18
+inputBox.Text = ""
+inputBox.TextColor3 = Color3.new(1,1,1)
+inputBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+inputBox.BorderSizePixel = 0
+
+local addBtn = Instance.new("TextButton", frame)
+addBtn.Size = UDim2.new(0, 100, 0, 30)
+addBtn.Position = UDim2.new(0, 10, 0, 80)
+addBtn.Text = "Add"
+addBtn.Font = Enum.Font.SourceSansBold
+addBtn.TextSize = 16
+addBtn.TextColor3 = Color3.new(1,1,1)
+addBtn.BackgroundColor3 = Color3.fromRGB(60, 100, 60)
+
+-- Selector Toggle Button
+local selectorBtn = Instance.new("TextButton", frame)
+selectorBtn.Size = UDim2.new(0, 100, 0, 30)
+selectorBtn.Position = UDim2.new(0, 120, 0, 80)
+selectorBtn.Text = "Selector: OFF"
+selectorBtn.Font = Enum.Font.SourceSansBold
+selectorBtn.TextSize = 14
+selectorBtn.TextColor3 = Color3.new(1,1,1)
+selectorBtn.BackgroundColor3 = Color3.fromRGB(100, 60, 60)
+
+-- Clear All Button
+local clearBtn = Instance.new("TextButton", frame)
+clearBtn.Size = UDim2.new(0, 100, 0, 30)
+clearBtn.Position = UDim2.new(0, 230, 0, 80)
+clearBtn.Text = "Clear All"
+clearBtn.Font = Enum.Font.SourceSansBold
+clearBtn.TextSize = 14
+clearBtn.TextColor3 = Color3.new(1,1,1)
+clearBtn.BackgroundColor3 = Color3.fromRGB(120, 60, 60)
+
+local scroll = Instance.new("ScrollingFrame", frame)
+scroll.Size = UDim2.new(1, -20, 0, 120)
+scroll.Position = UDim2.new(0, 10, 0, 120)
+scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+scroll.ScrollBarThickness = 6
+scroll.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+scroll.BackgroundTransparency = 0.1
+scroll.BorderSizePixel = 0
+
+-- Profile Section
+local profileLabel = Instance.new("TextLabel", frame)
+profileLabel.Size = UDim2.new(1, -20, 0, 25)
+profileLabel.Position = UDim2.new(0, 10, 0, 250)
+profileLabel.Text = "Profile: default"
+profileLabel.Font = Enum.Font.SourceSansBold
+profileLabel.TextSize = 16
+profileLabel.BackgroundTransparency = 1
+profileLabel.TextColor3 = Color3.new(1, 1, 1)
+profileLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local profileInput = Instance.new("TextBox", frame)
+profileInput.Size = UDim2.new(1, -20, 0, 30)
+profileInput.Position = UDim2.new(0, 10, 0, 280)
+profileInput.PlaceholderText = "Enter profile name..."
+profileInput.Font = Enum.Font.SourceSans
+profileInput.TextSize = 16
+profileInput.Text = ""
+profileInput.TextColor3 = Color3.new(1,1,1)
+profileInput.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+profileInput.BorderSizePixel = 0
+
+-- Save Profile Button
+local saveBtn = Instance.new("TextButton", frame)
+saveBtn.Size = UDim2.new(0, 100, 0, 30)
+saveBtn.Position = UDim2.new(0, 10, 0, 320)
+saveBtn.Text = "Save"
+saveBtn.Font = Enum.Font.SourceSansBold
+saveBtn.TextSize = 16
+saveBtn.TextColor3 = Color3.new(1,1,1)
+saveBtn.BackgroundColor3 = Color3.fromRGB(60, 100, 100)
+
+-- Load Profile Button
+local loadBtn = Instance.new("TextButton", frame)
+loadBtn.Size = UDim2.new(0, 100, 0, 30)
+loadBtn.Position = UDim2.new(0, 120, 0, 320)
+loadBtn.Text = "Load"
+loadBtn.Font = Enum.Font.SourceSansBold
+loadBtn.TextSize = 16
+loadBtn.TextColor3 = Color3.new(1,1,1)
+loadBtn.BackgroundColor3 = Color3.fromRGB(100, 60, 100)
+
+-- Delete Profile Button
+local deleteBtn = Instance.new("TextButton", frame)
+deleteBtn.Size = UDim2.new(0, 100, 0, 30)
+deleteBtn.Position = UDim2.new(0, 230, 0, 320)
+deleteBtn.Text = "Delete"
+deleteBtn.Font = Enum.Font.SourceSansBold
+deleteBtn.TextSize = 16
+deleteBtn.TextColor3 = Color3.new(1,1,1)
+deleteBtn.BackgroundColor3 = Color3.fromRGB(140, 50, 50)
+
+local minimize = Instance.new("TextButton", frame)
+minimize.Size = UDim2.new(0, 80, 0, 25)
+minimize.Position = UDim2.new(0, 10, 1, -35)
+minimize.Text = "Minimize"
+minimize.Font = Enum.Font.SourceSansBold
+minimize.TextSize = 14
+minimize.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+minimize.TextColor3 = Color3.new(1, 1, 1)
+
+local exit = Instance.new("TextButton", frame)
+exit.Size = UDim2.new(0, 80, 0, 25)
+exit.Position = UDim2.new(1, -90, 1, -35)
+exit.Text = "Exit"
+exit.Font = Enum.Font.SourceSansBold
+exit.TextSize = 14
+exit.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+exit.TextColor3 = Color3.new(1, 1, 1)
+
+-- Minimized icon (TPM)
+local tpmButton = Instance.new("TextButton", screenGui)
+tpmButton.Size = UDim2.new(0, 60, 0, 30)
+tpmButton.Position = UDim2.new(0, 10, 1, -40)
+tpmButton.Text = "TPM"
+tpmButton.Visible = false
+tpmButton.BackgroundColor3 = Color3.fromRGB(50, 50, 150)
+tpmButton.TextColor3 = Color3.new(1,1,1)
+tpmButton.Font = Enum.Font.SourceSansBold
+tpmButton.TextSize = 16
+
+-- Crosshair GUI
+local crosshairFrame = Instance.new("Frame", screenGui)
+crosshairFrame.Size = UDim2.new(0, 40, 0, 40)
+crosshairFrame.Position = UDim2.new(0.5, -20, 0.5, -20)
+crosshairFrame.BackgroundTransparency = 1
+crosshairFrame.Visible = false
+
+local hLine = Instance.new("Frame", crosshairFrame)
+hLine.Size = UDim2.new(1, 0, 0, 2)
+hLine.Position = UDim2.new(0, 0, 0.5, -1)
+hLine.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+hLine.BorderSizePixel = 0
+
+local vLine = Instance.new("Frame", crosshairFrame)
+vLine.Size = UDim2.new(0, 2, 1, 0)
+vLine.Position = UDim2.new(0.5, -1, 0, 0)
+vLine.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+vLine.BorderSizePixel = 0
+
+local centerDot = Instance.new("Frame", crosshairFrame)
+centerDot.Size = UDim2.new(0, 4, 0, 4)
+centerDot.Position = UDim2.new(0.5, -2, 0.5, -2)
+centerDot.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
+centerDot.BorderSizePixel = 0
+
+-- Storage Functions
+local function saveProfile(profileName)
+	local data = {}
+	for i, wp in ipairs(waypoints) do
+		local cf = wp.cframe
+		table.insert(data, {
+			name = wp.name,
+			x = cf.X, y = cf.Y, z = cf.Z,
+			rx = cf.RightVector.X, ry = cf.RightVector.Y, rz = cf.RightVector.Z,
+			ux = cf.UpVector.X, uy = cf.UpVector.Y, uz = cf.UpVector.Z,
+			lx = -cf.LookVector.X, ly = -cf.LookVector.Y, lz = -cf.LookVector.Z
+		})
+	end
+	
+	writefile("TPMaker_" .. profileName .. ".json", game:GetService("HttpService"):JSONEncode(data))
+	return true
+end
+
+local function loadProfile(profileName)
+	local success, result = pcall(function()
+		return readfile("TPMaker_" .. profileName .. ".json")
+	end)
+	
+	if success then
+		local data = game:GetService("HttpService"):JSONDecode(result)
+		waypoints = {}
+		for i, wp in ipairs(data) do
+			local cf = CFrame.new(wp.x, wp.y, wp.z, wp.rx, wp.ry, wp.rz, wp.ux, wp.uy, wp.uz, wp.lx, wp.ly, wp.lz)
+			table.insert(waypoints, {name = wp.name, cframe = cf})
+		end
+		return true
+	end
+	return false
+end
+
+local function deleteProfile(profileName)
+	local success = pcall(function()
+		delfile("TPMaker_" .. profileName .. ".json")
+	end)
+	return success
+end
+
+-- Show popup message
+local function showPopup(message, color)
+	local popup = Instance.new("TextLabel", screenGui)
+	popup.Text = message
+	popup.Size = UDim2.new(0, 300, 0, 40)
+	popup.Position = UDim2.new(0.5, -150, 0.5, -100)
+	popup.BackgroundColor3 = color or Color3.fromRGB(30, 30, 30)
+	popup.TextColor3 = Color3.new(1, 1, 1)
+	popup.Font = Enum.Font.SourceSansBold
+	popup.TextSize = 18
+	popup.BackgroundTransparency = 0.2
+	popup.BorderSizePixel = 0
+	task.wait(2)
+	popup:Destroy()
+end
+
+-- Create Highlight for object
+local function createHighlight(part)
+	if currentHighlight then
+		currentHighlight:Destroy()
+	end
+	
+	local highlight = Instance.new("Highlight")
+	highlight.Parent = part
+	highlight.FillColor = Color3.fromRGB(0, 255, 0)
+	highlight.OutlineColor = Color3.fromRGB(255, 255, 0)
+	highlight.FillTransparency = 0.5
+	highlight.OutlineTransparency = 0
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	
+	currentHighlight = highlight
+end
+
+-- Remove Highlight
+local function removeHighlight()
+	if currentHighlight then
+		currentHighlight:Destroy()
+		currentHighlight = nil
+	end
+end
+
+-- Get object at center of screen (raycast)
+local function getTargetAtCenter()
+	local ray = camera:ScreenPointToRay(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+	raycastParams.FilterDescendantsInstances = {player.Character}
+	
+	local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, raycastParams)
+	
+	if result then
+		return result.Instance, result.Position
+	end
+	return nil, nil
+end
+
+-- Update Waypoint List with Remove Button
+local function updateWaypointList()
+	scroll:ClearAllChildren()
+	scroll.CanvasSize = UDim2.new(0, 0, 0, #waypoints * 35)
+	
+	for i, wp in ipairs(waypoints) do
+		local container = Instance.new("Frame", scroll)
+		container.Size = UDim2.new(1, -10, 0, 30)
+		container.Position = UDim2.new(0, 5, 0, (i-1)*35)
+		container.BackgroundTransparency = 1
+		
+		-- TP Button
+		local btn = Instance.new("TextButton", container)
+		btn.Size = UDim2.new(1, -40, 1, 0)
+		btn.Position = UDim2.new(0, 0, 0, 0)
+		btn.Text = wp.name
+		btn.Font = Enum.Font.SourceSans
+		btn.TextSize = 16
+		btn.TextColor3 = Color3.new(1,1,1)
+		btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		btn.MouseButton1Click:Connect(function()
+			if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+				player.Character.HumanoidRootPart.CFrame = wp.cframe + Vector3.new(0, 3, 0)
+			end
+		end)
+		
+		-- Remove Button
+		local removeBtn = Instance.new("TextButton", container)
+		removeBtn.Size = UDim2.new(0, 35, 1, 0)
+		removeBtn.Position = UDim2.new(1, -35, 0, 0)
+		removeBtn.Text = "X"
+		removeBtn.Font = Enum.Font.SourceSansBold
+		removeBtn.TextSize = 18
+		removeBtn.TextColor3 = Color3.new(1,1,1)
+		removeBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+		removeBtn.MouseButton1Click:Connect(function()
+			table.remove(waypoints, i)
+			updateWaypointList()
+		end)
+	end
+end
+
+-- Add Waypoint (using center raycast)
+addBtn.MouseButton1Click:Connect(function()
+	local name = inputBox.Text
+	if name ~= "" then
+		local target, position = getTargetAtCenter()
+		if target and position then
+			local cf = CFrame.new(position)
+			table.insert(waypoints, {name = name, cframe = cf, part = target})
+			updateWaypointList()
+			inputBox.Text = ""
+		end
+	end
+end)
+
+-- Clear All Waypoints
+clearBtn.MouseButton1Click:Connect(function()
+	waypoints = {}
+	updateWaypointList()
+	showPopup("All waypoints cleared!", Color3.fromRGB(100, 100, 50))
+end)
+
+-- Save Profile
+saveBtn.MouseButton1Click:Connect(function()
+	local profileName = profileInput.Text
+	if profileName == "" then
+		profileName = "default"
+	end
+	
+	if saveProfile(profileName) then
+		currentProfile = profileName
+		profileLabel.Text = "Profile: " .. currentProfile
+		showPopup("Profile '" .. profileName .. "' saved!", Color3.fromRGB(50, 150, 50))
+		profileInput.Text = ""
+	else
+		showPopup("Failed to save profile!", Color3.fromRGB(150, 50, 50))
+	end
+end)
+
+-- Load Profile
+loadBtn.MouseButton1Click:Connect(function()
+	local profileName = profileInput.Text
+	if profileName == "" then
+		profileName = "default"
+	end
+	
+	if loadProfile(profileName) then
+		currentProfile = profileName
+		profileLabel.Text = "Profile: " .. currentProfile
+		updateWaypointList()
+		showPopup("Profile '" .. profileName .. "' loaded!", Color3.fromRGB(50, 150, 50))
+		profileInput.Text = ""
+	else
+		showPopup("Profile '" .. profileName .. "' not found!", Color3.fromRGB(150, 50, 50))
+	end
+end)
+
+-- Delete Profile
+deleteBtn.MouseButton1Click:Connect(function()
+	local profileName = profileInput.Text
+	if profileName == "" then
+		showPopup("Enter profile name to delete!", Color3.fromRGB(150, 150, 50))
+		return
+	end
+	
+	if deleteProfile(profileName) then
+		if currentProfile == profileName then
+			currentProfile = "default"
+			profileLabel.Text = "Profile: " .. currentProfile
+			waypoints = {}
+			updateWaypointList()
+		end
+		showPopup("Profile '" .. profileName .. "' deleted!", Color3.fromRGB(150, 50, 50))
+		profileInput.Text = ""
+	else
+		showPopup("Failed to delete profile!", Color3.fromRGB(150, 50, 50))
+	end
+end)
+
+-- Selector Toggle
+selectorBtn.MouseButton1Click:Connect(function()
+	selectorEnabled = not selectorEnabled
+	if selectorEnabled then
+		selectorBtn.Text = "Selector: ON"
+		selectorBtn.BackgroundColor3 = Color3.fromRGB(60, 100, 60)
+		crosshairFrame.Visible = true
+	else
+		selectorBtn.Text = "Selector: OFF"
+		selectorBtn.BackgroundColor3 = Color3.fromRGB(100, 60, 60)
+		crosshairFrame.Visible = false
+		removeHighlight()
+	end
+end)
+
+-- Update highlight based on center crosshair
+game:GetService("RunService").RenderStepped:Connect(function()
+	if selectorEnabled then
+		local target = getTargetAtCenter()
+		if target then
+			createHighlight(target)
+		else
+			removeHighlight()
+		end
+	end
+end)
+
+-- Minimize
+local isMin = false
+minimize.MouseButton1Click:Connect(function()
+	if not isMin then
+		frame.Visible = false
+		tpmButton.Visible = true
+		if not selectorEnabled then
+			removeHighlight()
+		end
+	else
+		frame.Visible = true
+		tpmButton.Visible = false
+	end
+	isMin = not isMin
+end)
+
+-- TPM Button Restore
+tpmButton.MouseButton1Click:Connect(function()
+	frame.Visible = true
+	tpmButton.Visible = false
+	isMin = false
+end)
+
+-- Exit
+exit.MouseButton1Click:Connect(function()
+	removeHighlight()
+	screenGui:Destroy()
+end)
+
+-- Auto-load default profile on start
+loadProfile("default")

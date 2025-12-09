@@ -1,0 +1,248 @@
+-- Deobfuscated by SouljaWitchSrc
+
+-- Services and Core Variables
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+
+-- Configuration and State
+local playerRoles = {}
+local isEspEnabled = true
+local isRoleEspEnabled = true
+
+-- ESP Folder
+local espFolder = Instance.new("Folder", Workspace)
+espFolder.Name = "FullRoleESP"
+
+-- UI Creation
+local mainGui = Instance.new("ScreenGui")
+mainGui.Name = "ESPSettings"
+mainGui.ResetOnSpawn = false
+mainGui.Parent = game:GetService("CoreGui")
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 150, 0, 90)
+mainFrame.Position = UDim2.new(0, 10, 0.4, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BorderSizePixel = 0
+mainFrame.Name = "MainFrame"
+mainFrame.Parent = mainGui
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.FillDirection = Enum.FillDirection.Vertical
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Padding = UDim.new(0, 4)
+listLayout.Parent = mainFrame
+
+-- Variables for Dragging Logic
+local isDragging = false
+local lastMouseInput = nil
+local dragStartPosition = nil
+local frameStartPosition = nil
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        isDragging = true
+        dragStartPosition = input.Position
+        frameStartPosition = mainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                isDragging = false
+            end
+        end)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        lastMouseInput = input
+    end
+    if isDragging and input == lastMouseInput then
+        local delta = input.Position - dragStartPosition
+        mainFrame.Position = UDim2.new(frameStartPosition.X.Scale, frameStartPosition.X.Offset + delta.X, frameStartPosition.Y.Scale, frameStartPosition.Y.Offset + delta.Y)
+    end
+end)
+
+-- Function to create a toggle button
+local function createToggleButton(buttonText, initialValue, callback)
+    local toggleButton = Instance.new("TextButton")
+    toggleButton.Size = UDim2.new(1, 0, 0, 30)
+    toggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    toggleButton.TextColor3 = Color3.new(1, 1, 1)
+    toggleButton.Text = buttonText .. ": ON"
+    toggleButton.Font = Enum.Font.SourceSansBold
+    toggleButton.TextScaled = true
+    toggleButton.Parent = mainFrame
+    
+    local currentValue = initialValue
+    toggleButton.MouseButton1Click:Connect(function()
+        currentValue = not currentValue
+        toggleButton.Text = buttonText .. (currentValue and ": ON" or ": OFF")
+        callback(currentValue)
+    end)
+end
+
+createToggleButton("ESP", true, function(newValue)
+    isEspEnabled = newValue
+end)
+
+createToggleButton("Role", true, function(newValue)
+    isRoleEspEnabled = newValue
+end)
+
+--[[ NOTE: The following button seems to be unused in the original script's logic, but is preserved here. ]]
+local unusedButton = Instance.new("TextButton")
+unusedButton.Text = "#####"
+unusedButton.Size = UDim2.new(0, 30, 0, 30)
+unusedButton.Position = UDim2.new(0, 10, 0.4, 0)
+unusedButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+unusedButton.TextColor3 = Color3.new(1, 1, 1)
+unusedButton.Visible = false
+unusedButton.Parent = mainGui
+
+local closeButton = Instance.new("TextButton")
+closeButton.Text = "X"
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -30, 0, 0)
+closeButton.BackgroundColor3 = Color3.fromRGB(60, 0, 0)
+closeButton.TextColor3 = Color3.new(1, 1, 1)
+closeButton.Parent = mainFrame
+closeButton.MouseButton1Click:Connect(function()
+    mainGui:Destroy()
+    espFolder:Destroy()
+    RunService:UnbindFromRenderStep("ESPUpdate")
+end)
+
+local restoreButton = Instance.new("TextButton")
+restoreButton.Text = "#####"
+restoreButton.Size = UDim2.new(0, 40, 0, 40)
+restoreButton.Position = UDim2.new(0, 10, 0.9, 0)
+restoreButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+restoreButton.TextColor3 = Color3.new(1, 1, 1)
+restoreButton.Visible = false
+restoreButton.Parent = mainGui
+
+local function hideMainFrame()
+    mainFrame.Visible = false
+    unusedButton.Visible = false
+    restoreButton.Visible = true
+    restoreButton.Position = mainFrame.Position
+end
+
+local function showMainFrame()
+    mainFrame.Visible = true
+    unusedButton.Visible = false
+    restoreButton.Visible = false
+end
+
+-- Right-click on frame to minimize
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+        hideMainFrame()
+    end
+end)
+
+-- Unused button's original connection
+unusedButton.MouseButton1Click:Connect(hideMainFrame)
+
+-- Restore button click
+restoreButton.MouseButton1Click:Connect(showMainFrame)
+
+-- Core ESP Functions
+local function updatePlayerRole(player)
+    if player ~= LocalPlayer and player.Character then
+        local hasRoleItem = false
+        
+        local function scanContainer(container)
+            for _, item in ipairs(container:GetChildren()) do
+                local itemName = item.Name:lower()
+                if itemName == "knife" then
+                    playerRoles[player] = "Murderer"
+                    hasRoleItem = true
+                elseif itemName == "gun" or itemName == "revolver" then
+                    playerRoles[player] = "Sheriff"
+                    hasRoleItem = true
+                end
+            end
+        end
+
+        if player:FindFirstChild("Backpack") then
+            scanContainer(player.Backpack)
+        end
+        scanContainer(player.Character)
+        
+        if not (hasRoleItem or playerRoles[player]) then
+            playerRoles[player] = "Innocent"
+        end
+    end
+end
+
+local function createEspForPlayer(player)
+    local espName = player.Name .. "_ESP"
+    if espFolder:FindFirstChild(espName) then
+        return
+    elseif player.Character and player.Character:FindFirstChild("Head") then
+        local billboardGui = Instance.new("BillboardGui", espFolder)
+        billboardGui.Name = espName
+        billboardGui.Adornee = player.Character.Head
+        billboardGui.Size = UDim2.new(0, 100, 0, 40)
+        billboardGui.StudsOffset = Vector3.new(0, 2.5, 0)
+        billboardGui.AlwaysOnTop = true
+        
+        local dot = Instance.new("Frame", billboardGui)
+        dot.Size = UDim2.new(0, 8, 0, 8)
+        dot.Position = UDim2.new(0.5, -4, 0, 0)
+        dot.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        dot.BorderSizePixel = 0
+        dot.Name = "Dot"
+        dot.BackgroundTransparency = 0
+        dot.AnchorPoint = Vector2.new(0.5, 0)
+        
+        local roleLabel = Instance.new("TextLabel", billboardGui)
+        roleLabel.Name = "RoleText"
+        roleLabel.Size = UDim2.new(1, 0, 0, 20)
+        roleLabel.Position = UDim2.new(0, 0, 0, 10)
+        roleLabel.BackgroundTransparency = 1
+        roleLabel.TextStrokeTransparency = 0.5
+        roleLabel.TextScaled = true
+        roleLabel.Font = Enum.Font.SourceSansBold
+        roleLabel.TextColor3 = Color3.new(1, 1, 1)
+        roleLabel.Text = ""
+    end
+end
+
+-- Main Render Loop
+RunService:BindToRenderStep("ESPUpdate", Enum.RenderPriority.Camera.Value + 1, function()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            updatePlayerRole(player)
+            createEspForPlayer(player)
+            
+            local espInstance = espFolder:FindFirstChild(player.Name .. "_ESP")
+            local character = player.Character
+            
+            if espInstance and (character and character:FindFirstChild("Head")) then
+                espInstance.Adornee = character.Head
+                
+                local playerRole = playerRoles[player] or "Innocent"
+                local roleText = espInstance:FindFirstChild("RoleText")
+                local dotIndicator = espInstance:FindFirstChild("Dot")
+                
+                if isEspEnabled then
+                    dotIndicator.Visible = true
+                else
+                    dotIndicator.Visible = false
+                end
+                
+                if isRoleEspEnabled then
+                    roleText.Text = playerRole
+                    roleText.TextColor3 = playerRole == "Murderer" and Color3.fromRGB(255, 0, 0) or (playerRole == "Sheriff" and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(0, 255, 0))
+                else
+                    roleText.Text = ""
+                end
+            end
+        end
+    end
+end)

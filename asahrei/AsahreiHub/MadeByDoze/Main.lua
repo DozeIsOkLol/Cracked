@@ -7,6 +7,7 @@
 --   • Super Hero Tycoon       (574407221)
 --   • Dragon Simulator        (2324069335)
 --   • Snow Shovel Battle      (127718588961610)
+--   • Ride the Coaster        (91256372267009)
 
 local AsahreiHub = {}
 
@@ -34,6 +35,7 @@ local supportedGames = {
     [574407221]       = { name = "Super Hero Tycoon",       folder = "SuperHeroTycoon",   script = "Script.lua" },
     [2324069335]      = { name = "Dragon Simulator",        folder = "DragonSimulator",   script = "Script1.lua" },
     [127718588961610 ]      = { name = "Snow Shovel Battle",        folder = "SnowShovelBattle",   script = "Script.lua" },
+    [91256372267009 ]      = { name = "Ride the Coaster",        folder = "RidetheCoaster",   script = "Script.lua" },
 }
 
 local gameData = supportedGames[placeId]

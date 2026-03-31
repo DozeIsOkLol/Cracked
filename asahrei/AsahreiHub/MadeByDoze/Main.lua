@@ -32,6 +32,7 @@ local supportedGames = {
     [124143542106350] = { name = "Strike Back [Season 1]",  folder = "StrikeBack[Season1]", script = "Script.lua" },
     [574407221]       = { name = "Super Hero Tycoon",       folder = "SuperHeroTycoon",   script = "Script.lua" },
     [2324069335]      = { name = "Dragon Simulator",        folder = "DragonSimulator",   script = "Script1.lua" },
+    [127718588961610 ]      = { name = "Snow Shovel Battle",        folder = "SnowShovelBattle",   script = "Script.lua" },
 }
 
 local gameData = supportedGames[placeId]

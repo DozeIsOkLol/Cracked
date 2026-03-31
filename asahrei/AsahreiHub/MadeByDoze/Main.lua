@@ -6,6 +6,7 @@
 --   • Strike Back [Season 1]  (124143542106350)
 --   • Super Hero Tycoon       (574407221)
 --   • Dragon Simulator        (2324069335)
+--   • Snow Shovel Battle      (127718588961610)
 
 local AsahreiHub = {}
 

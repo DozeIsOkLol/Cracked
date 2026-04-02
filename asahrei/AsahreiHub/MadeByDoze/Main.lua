@@ -34,7 +34,7 @@ local supportedGames = {
     [5775214331]      = { name = "Jail Tycoon",             folder = "JailTycoon",        script = "Script.lua.lua" },
     [124143542106350] = { name = "Strike Back [Season 1]",  folder = "StrikeBack[Season1]", script = "Script.lua" },
     [574407221]       = { name = "Super Hero Tycoon",       folder = "SuperHeroTycoon",   script = "Script.lua" },
-    [2324069335]      = { name = "Dragon Simulator",        folder = "DragonSimulator",   script = "Script1.lua" },
+    [2324069335]      = { name = "Dragon Simulator",        folder = "DragonSimulator",   script = "Script.lua" },
     [127718588961610]      = { name = "Snow Shovel Battle",        folder = "SnowShovelBattle",   script = "Script.lua" },
     [91256372267009]      = { name = "Ride the Coaster",        folder = "RidetheCoaster",   script = "Script.lua" },
     [18286009370]      = { name = "Guns Tycoon",        folder = "GunsTycoon",   script = "Script.lua" },
